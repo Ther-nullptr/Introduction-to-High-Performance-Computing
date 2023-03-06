@@ -8,6 +8,7 @@ void square_sgemm(int n, float *A, float *B, float *C)
 {
     /* For each row i of A */
     for (int i = 0; i < n; ++i)
+    {
         /* For each column j of B */
         for (int j = 0; j < n; ++j)
         {
@@ -17,4 +18,5 @@ void square_sgemm(int n, float *A, float *B, float *C)
                 cij += A[i + k * n] * B[k + j * n];
             C[i + j * n] = cij;
         }
+    }
 }
