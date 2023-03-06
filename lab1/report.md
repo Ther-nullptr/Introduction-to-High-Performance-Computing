@@ -60,7 +60,7 @@ void square_sgemm(int lda, float *A, float *B, float *C)
 
 将`BLOCK_SIZE`视为超参，改变大小，计算结果如下：
 
-### 二、循环展开
+### 二、循环展开（Unrolling）
 
 借鉴...中的思路，我们采用循环展开（loop unrolling）的方法，每次迭代计算`UNROLLING_NUM`个元素，这样在内层循环中可以实现`UNROLLING_NUM`次数据复用。
 
@@ -88,7 +88,9 @@ C[i + UNROLLING_NUM - 1][j] = A[i + UNROLLING_NUM - 1][k] * B[k][j]
 
 这里我们为了操作简便和提高效率，我们在分好块的矩阵中实现循环展开，且规定矩阵块的大小一定可以整除`UNROLLING_NUM`，这样就无需要考虑边界条件。
 
+### 三、寄存器优化（Register Blocking）
 
+### 四、单指令多数据（SIMD）
 
 ## 参考文献
 

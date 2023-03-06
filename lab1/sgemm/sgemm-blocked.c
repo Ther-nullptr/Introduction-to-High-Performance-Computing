@@ -14,7 +14,7 @@ const char *sgemm_desc = "Simple blocked sgemm.";
  *  C := C + A * B
  * where C is M-by-N, A is M-by-K, and B is K-by-N. 
 */
-static void do_block(int lda, int M, int N, int K, float *A, float *B, float *C)
+static inline void do_block(int lda, int M, int N, int K, float *A, float *B, float *C)
 {
     /* For each row i of A */
     for (int i = 0; i < M; ++i)
@@ -31,7 +31,7 @@ static void do_block(int lda, int M, int N, int K, float *A, float *B, float *C)
     }
 }
 
-static void do_block_divide_a(int lda, int M, int N, int K, float *A, float *B, float *C)
+static inline void do_block_divide_a(int lda, int M, int N, int K, float *A, float *B, float *C)
 {
     /* For each row i of A */
     for (int i = 0; i < M; ++i)
@@ -53,7 +53,7 @@ static void do_block_divide_a(int lda, int M, int N, int K, float *A, float *B, 
     }
 }
 
-static void do_block_divide_b(int lda, int M, int N, int K, float *A, float *B, float *C)
+static inline void do_block_divide_b(int lda, int M, int N, int K, float *A, float *B, float *C)
 {
     /* For each row i of A */
     for (int i = 0; i < M; i += UNROLLING_NUM)
@@ -103,7 +103,7 @@ void square_sgemm(int lda, float *A, float *B, float *C)
     }
 }
 
-void square_sgemm_with_unrolling_a(int lda, float *A, float *B, float *C)
+static void square_sgemm_with_unrolling_a(int lda, float *A, float *B, float *C)
 {
     assert(BLOCK_SIZE % UNROLLING_NUM == 0);
     /* For each block-row of A */
@@ -127,7 +127,7 @@ void square_sgemm_with_unrolling_a(int lda, float *A, float *B, float *C)
     }
 }
 
-void square_sgemm_with_unrolling_b(int lda, float *A, float *B, float *C)
+static void square_sgemm_with_unrolling_b(int lda, float *A, float *B, float *C)
 {
     assert(BLOCK_SIZE % UNROLLING_NUM == 0);
     /* For each block-row of A */
