@@ -91,6 +91,9 @@ int main(int argc, char **argv)
         /* A representative subset of the first list for initial test.  */
         {31, 32, 33, 63, 64, 65, 95, 96, 97, 127, 128, 129, 159, 160, 161, 191, 192, 193, 223, 224, 225, 255, 256, 257, 287, 288, 289, 319, 320, 321, 351, 352, 353, 383, 384, 385, 415, 416, 417, 447, 448, 449, 479, 480, 481, 511, 512, 513, 543, 544, 545, 575, 576, 577, 607, 608, 609, 639, 640, 641, 671, 672, 673, 703, 704, 705, 735, 736, 737, 767, 768, 769, 799, 800, 801, 831, 832, 833, 863, 864, 865, 895, 896, 897, 927, 928, 929, 959, 960, 961, 991, 992, 993, 1023, 1024, 1025};
 
+        /* a smaller version for debug */
+        // {31, 32, 33};
+
     int nsizes = sizeof(test_sizes) / sizeof(test_sizes[0]);
 
     /* assume last size is also the largest size */
@@ -101,6 +104,15 @@ int main(int argc, char **argv)
     buf = (float *)malloc(3 * nmax * nmax * sizeof(float));
     if (buf == NULL)
         die("failed to allocate largest problem size");
+
+    /* write the data to csv, with a time-stamp file name */
+    FILE *fp;
+    char filename[100];
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    sprintf(filename, "data_%d-%d-%d_%d:%d:%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+    fp = fopen(filename, "a");
+    fprintf(fp, "size,Gflops,iter,seconds\n");
 
     /* For each test size */
     for (int isize = 0; isize < sizeof(test_sizes) / sizeof(test_sizes[0]); ++isize)
@@ -138,6 +150,9 @@ int main(int argc, char **argv)
             Gflops_s = 2.e-9 * n_iterations * n * n * n / seconds;
         }
         printf("Size: %d\tGflop/s: %.3g (%d iter, %.3f seconds)\n", n, Gflops_s, n_iterations, seconds);
+        
+        /* write the data to the file */
+        fprintf(fp, "%d,%.3g,%d,%.3f\n", n, Gflops_s, n_iterations, seconds);
 
         /* Ensure that error does not exceed the theoretical error bound. */
 
@@ -168,6 +183,7 @@ int main(int argc, char **argv)
                 die("*** FAILURE *** Error in matrix multiply exceeds componentwise error bounds.\n");
     }
 
+    fclose(fp);
     free(buf);
     return 0;
 }

@@ -25,6 +25,7 @@
 *.ira
 
 *.o
+*.csv
 
 benchmark-test
 benchmark-naive
