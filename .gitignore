@@ -23,3 +23,10 @@
 *.mode_sw
 *.asmcons
 *.ira
+
+*.o
+
+benchmark-test
+benchmark-naive
+benchmark-blocked
+benchmark-blas

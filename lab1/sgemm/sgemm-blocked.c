@@ -1,3 +1,5 @@
+#include<assert.h>
+
 const char *sgemm_desc = "Simple blocked sgemm.";
 
 #if !defined(BLOCK_SIZE)

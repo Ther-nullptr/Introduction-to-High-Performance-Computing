@@ -5,7 +5,7 @@
 #include <float.h> // For: DBL_EPSILON
 #include <math.h>  // For: fabs
 
-#define GETTIMEOFDAY
+#include <time.h>
 
 #ifdef GETTIMEOFDAY
 #include <sys/time.h> // For struct timeval, gettimeofday

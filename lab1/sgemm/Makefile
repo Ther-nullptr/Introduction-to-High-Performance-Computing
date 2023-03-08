@@ -2,7 +2,7 @@
 # This makefile is intended for the Intel C compiler.
 # Your code must compile (with icc) with the given CFLAGS. You may experiment with the OPT variable to invoke additional compiler options.
 
-CC = gcc
+CC = icc
 OPT = 
 CFLAGS = -Wall -DGETTIMEOFDAY -std=c99 $(OPT) -diag-disable=10441
 LDFLAGS = -Wall 
@@ -20,7 +20,6 @@ all : clean $(targets)
 
 benchmark-test : benchmark-test.o sgemm-blocked.o
 	$(CC) -o $@ $^ $(LDLIBS)
-
 benchmark-naive : benchmark.o sgemm-naive.o
 	$(CC) -o $@ $^ $(LDLIBS)
 benchmark-blocked : benchmark.o sgemm-blocked.o
