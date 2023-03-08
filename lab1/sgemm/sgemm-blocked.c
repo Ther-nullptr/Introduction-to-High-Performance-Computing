@@ -3,7 +3,7 @@
 const char *sgemm_desc = "Simple blocked sgemm.";
 
 #if !defined(BLOCK_SIZE)
-#define BLOCK_SIZE 41
+#define BLOCK_SIZE 64
 #endif
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
@@ -12,19 +12,33 @@ const char *sgemm_desc = "Simple blocked sgemm.";
  *  C := C + A * B
  * where C is M-by-N, A is M-by-K, and B is K-by-N. 
 */
-static inline void do_block(int lda, int M, int N, int K, float *A, float *B, float *C)
+static inline void do_block_divide_a(int lda, int M, int N, int K, float *A, float *B, float *C)
 {
     /* For each row i of A */
     for (int i = 0; i < M; ++i)
     {
         /* For each column j of B */
-        for (int j = 0; j < N; ++j)
+        for (int j = 0; j < N; j += 4)
         {
             /* Compute C(i,j) */
-            float cij = C[i + j * lda];
+            float cij_0 = C[i + j * lda];
+            float cij_1 = C[i + (j + 1) * lda];
+            float cij_2 = C[i + (j + 2) * lda];
+            float cij_3 = C[i + (j + 3) * lda];
+
             for (int k = 0; k < K; ++k)
-                cij += A[i + k * lda] * B[k + j * lda]; // C[j][i] = B[j][k] * A[k][i] 
-            C[i + j * lda] = cij;
+            {
+                float aik = A[i + k * lda];
+                cij_0 += aik * B[k + j * lda];
+                cij_1 += aik * B[k + (j + 1) * lda];
+                cij_2 += aik * B[k + (j + 2) * lda];
+                cij_3 += aik * B[k + (j + 3) * lda];
+            }
+
+            C[i + j * lda] = cij_0;
+            C[i + (j + 1) * lda] = cij_1;
+            C[i + (j + 2) * lda] = cij_2;
+            C[i + (j + 3) * lda] = cij_3;
         }
     }
 }
@@ -51,8 +65,9 @@ void square_sgemm(int lda, float *A, float *B, float *C)
                 int K = min(BLOCK_SIZE, lda - k);
 
                 /* Perform individual block sgemm */
-                do_block(lda, M, N, K, A + i + k * lda, B + k + j * lda, C + i + j * lda);
+                do_block_divide_a(lda, M, N, K, A + i + k * lda, B + k + j * lda, C + i + j * lda);
             }
         }
     }
 }
+
