@@ -15,30 +15,47 @@ const char *sgemm_desc = "Simple blocked sgemm.";
 static inline void do_block_divide_unrolling_b(int lda, int M, int N, int K, float *A, float *B, float *C)
 {
     /* For each row i of A */
-    for (int i = 0; i < M; ++i)
+    for (int i = 0; i < M; i++)
     {
         /* For each column j of B */
-        for (int j = 0; j < N; j += 4)
+        for (int j = 0; j < N;)
         {
-            /* Compute C(i,j) */
-            float cij_0 = C[i + j * lda];
-            float cij_1 = C[i + (j + 1) * lda];
-            float cij_2 = C[i + (j + 2) * lda];
-            float cij_3 = C[i + (j + 3) * lda];
-
-            for (int k = 0; k < K; ++k)
+            if (N - j >= 4)
             {
-                float aik = A[i + k * lda];
-                cij_0 += aik * B[k + j * lda];
-                cij_1 += aik * B[k + (j + 1) * lda];
-                cij_2 += aik * B[k + (j + 2) * lda];
-                cij_3 += aik * B[k + (j + 3) * lda];
-            }
+                /* Compute C(i,j) */
+                float cij_0 = C[i + j * lda];
+                float cij_1 = C[i + (j + 1) * lda];
+                float cij_2 = C[i + (j + 2) * lda];
+                float cij_3 = C[i + (j + 3) * lda];
 
-            C[i + j * lda] = cij_0;
-            C[i + (j + 1) * lda] = cij_1;
-            C[i + (j + 2) * lda] = cij_2;
-            C[i + (j + 3) * lda] = cij_3;
+                for (int k = 0; k < K; ++k)
+                {
+                    float aik = A[i + k * lda];
+                    cij_0 += aik * B[k + j * lda];
+                    cij_1 += aik * B[k + (j + 1) * lda];
+                    cij_2 += aik * B[k + (j + 2) * lda];
+                    cij_3 += aik * B[k + (j + 3) * lda];
+                }
+
+                C[i + j * lda] = cij_0;
+                C[i + (j + 1) * lda] = cij_1;
+                C[i + (j + 2) * lda] = cij_2;
+                C[i + (j + 3) * lda] = cij_3;
+                j += 4;
+            }
+            else
+            {
+                float cij = C[i + j * lda];
+
+                for (int k = 0; k < K; ++k)
+                {
+                    float aik = A[i + k * lda];
+                    cij += aik * B[k + j * lda];
+                }
+
+                C[i + j * lda] = cij;
+                j += 1;
+            }
         }
     }
 }
