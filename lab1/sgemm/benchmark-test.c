@@ -64,12 +64,32 @@ void fill(float *p, int n)
 {
     int tt;
     float tmp;
-    for (int i = 0; i < n; ++i)
+    int n_padding;
+    if (n % 4 == 0)
     {
-        tt = rand();
-        tmp = (float)tt / (float)(RAND_MAX);
-        // printf("%.2lf\n", tmp);
-        p[i] = 2 * tmp - 1; // Uniformly distributed over [-1, 1]
+        n_padding = n;
+    }
+    else
+    {
+        n_padding = (n / 4 + 1) * 4;
+    }
+
+    for (int i = 0; i < n_padding; ++i)
+    {
+        for (int j = 0; j < n_padding; ++j)
+        {
+            if (i < n && j < n)
+            {
+                tt = rand();
+                tmp = (float)tt / (float)(RAND_MAX);
+                // printf("%.2lf\n", tmp);
+                p[i + j * n_padding] = 2 * tmp - 1; // Uniformly distributed over [-1, 1]
+            }
+            else 
+            {
+                p[i + j * n_padding] = 0; 
+            }
+        }
     }
 }
 
@@ -89,7 +109,7 @@ int main(int argc, char **argv)
     int test_sizes[] =
 
         /* A representative subset of the first list for initial test.  */
-        {31, 32, 33, 63, 64, 65, 95, 96, 97, 127, 128, 129, 159, 160, 161, 191, 192, 193, 223, 224, 225, 255, 256, 257, 287, 288, 289, 319, 320, 321, 351, 352, 353, 383, 384, 385, 415, 416, 417, 447, 448, 449, 479, 480, 481, 511, 512, 513, 543, 544, 545, 575, 576, 577, 607, 608, 609, 639, 640, 641, 671, 672, 673, 703, 704, 705, 735, 736, 737, 767, 768, 769, 799, 800, 801, 831, 832, 833, 863, 864, 865, 895, 896, 897, 927, 928, 929, 959, 960, 961, 991, 992, 993, 1023, 1024, 1025};
+        {32, 33, 63, 64, 65, 95, 96, 97, 127, 128, 129, 159, 160, 161, 191, 192, 193, 223, 224, 225, 255, 256, 257, 287, 288, 289, 319, 320, 321, 351, 352, 353, 383, 384, 385, 415, 416, 417, 447, 448, 449, 479, 480, 481, 511, 512, 513, 543, 544, 545, 575, 576, 577, 607, 608, 609, 639, 640, 641, 671, 672, 673, 703, 704, 705, 735, 736, 737, 767, 768, 769, 799, 800, 801, 831, 832, 833, 863, 864, 865, 895, 896, 897, 927, 928, 929, 959, 960, 961, 991, 992, 993, 1023, 1024, 1025};
 
         /* a smaller version for debug */
         // {31, 32, 33};
@@ -101,8 +121,8 @@ int main(int argc, char **argv)
 
     /* allocate memory for all problems */
     float *buf = NULL;
-    int nmax_new = (nmax / 4 + 1) * 4;
-    buf = (float *)malloc(3 * nmax_new * nmax_new * sizeof(float));
+    int nmax_padding_global = (nmax % 4 == 0) ? nmax : (nmax / 4 + 1) * 4;
+    buf = (float *)malloc(3 * nmax_padding_global * nmax_padding_global * sizeof(float));
     if (buf == NULL)
         die("failed to allocate largest problem size");
 
@@ -122,12 +142,12 @@ int main(int argc, char **argv)
         int n = test_sizes[isize];
 
         float *A = buf + 0;
-        float *B = A + nmax_new * nmax_new;
-        float *C = B + nmax_new * nmax_new;
+        float *B = A + nmax_padding_global * nmax_padding_global;
+        float *C = B + nmax_padding_global * nmax_padding_global;
 
-        fill(A, n * n);
-        fill(B, n * n);
-        fill(C, n * n);
+        fill(A, n);
+        fill(B, n);
+        fill(C, n);
 
         /* Measure performance (in Gflops/s). */
 

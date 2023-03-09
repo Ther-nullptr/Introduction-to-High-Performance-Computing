@@ -64,12 +64,32 @@ void fill(float *p, int n)
 {
     int tt;
     float tmp;
-    for (int i = 0; i < n; ++i)
+    int n_padding;
+    if (n % 4 == 0)
     {
-        tt = rand();
-        tmp = (float)tt / (float)(RAND_MAX);
-        // printf("%.2lf\n", tmp);
-        p[i] = 2 * tmp - 1; // Uniformly distributed over [-1, 1]
+        n_padding = n;
+    }
+    else
+    {
+        n_padding = (n / 4 + 1) * 4;
+    }
+
+    for (int i = 0; i < n_padding; ++i)
+    {
+        for (int j = 0; j < n_padding; ++j)
+        {
+            if (i < n && j < n)
+            {
+                tt = rand();
+                tmp = (float)tt / (float)(RAND_MAX);
+                // printf("%.2lf\n", tmp);
+                p[i + j * n_padding] = 2 * tmp - 1; // Uniformly distributed over [-1, 1]
+            }
+            else 
+            {
+                p[i + j * n_padding] = 0; 
+            }
+        }
     }
 }
 
@@ -105,8 +125,8 @@ int main(int argc, char **argv)
 
     /* allocate memory for all problems */
     float *buf = NULL;
-    int nmax_new = (nmax / 4 + 1) * 4;
-    buf = (float *)malloc(3 * nmax_new * nmax_new * sizeof(float));
+    int nmax_padding_global = (nmax % 4 == 0) ? nmax : (nmax / 4 + 1) * 4;
+    buf = (float *)malloc(3 * nmax_padding_global * nmax_padding_global * sizeof(float));
     if (buf == NULL)
         die("failed to allocate largest problem size");
 
@@ -126,12 +146,12 @@ int main(int argc, char **argv)
         int n = test_sizes[isize];
 
         float *A = buf + 0;
-        float *B = A + nmax_new * nmax_new;
-        float *C = B + nmax_new * nmax_new;
+        float *B = A + nmax_padding_global * nmax_padding_global;
+        float *C = B + nmax_padding_global * nmax_padding_global;
 
-        fill(A, n * n);
-        fill(B, n * n);
-        fill(C, n * n);
+        fill(A, n);
+        fill(B, n);
+        fill(C, n);
 
         /* Measure performance (in Gflops/s). */
 
