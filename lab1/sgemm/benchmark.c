@@ -105,7 +105,8 @@ int main(int argc, char **argv)
 
     /* allocate memory for all problems */
     float *buf = NULL;
-    buf = (float *)malloc(3 * nmax * nmax * sizeof(float));
+    int nmax_new = (nmax / 4 + 1) * 4;
+    buf = (float *)malloc(3 * nmax_new * nmax_new * sizeof(float));
     if (buf == NULL)
         die("failed to allocate largest problem size");
 
@@ -125,8 +126,8 @@ int main(int argc, char **argv)
         int n = test_sizes[isize];
 
         float *A = buf + 0;
-        float *B = A + nmax * nmax;
-        float *C = B + nmax * nmax;
+        float *B = A + nmax_new * nmax_new;
+        float *C = B + nmax_new * nmax_new;
 
         fill(A, n * n);
         fill(B, n * n);
