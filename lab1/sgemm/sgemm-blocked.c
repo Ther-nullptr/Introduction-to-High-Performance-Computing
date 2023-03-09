@@ -18,27 +18,45 @@ static inline void do_block_divide_unrolling_a(int lda, int M, int N, int K, flo
     for (int j = 0; j < N; ++j)
     {
         /* For each row i of A */
-        for (int i = 0; i < M; i += 4)
+        for (int i = 0; i < M;)
         {
-            /* Compute C(i,j) */
-            float cij_0 = C[i + j * lda];
-            float cij_1 = C[i + 1 + j * lda];
-            float cij_2 = C[i + 2 + j * lda];
-            float cij_3 = C[i + 3 + j * lda];
-
-            for (int k = 0; k < K; ++k)
+            if (M - i >= 4)
             {
-                float bkj = B[k + j * lda];
-                cij_0 += bkj * A[i + k * lda];
-                cij_1 += bkj * A[i + 1 + k * lda];
-                cij_2 += bkj * A[i + 2 + k * lda];
-                cij_3 += bkj * A[i + 3 + k * lda];
-            }
+                /* Compute C(i,j) */
+                float cij_0 = C[i + j * lda];
+                float cij_1 = C[i + 1 + j * lda];
+                float cij_2 = C[i + 2 + j * lda];
+                float cij_3 = C[i + 3 + j * lda];
 
-            C[i + j * lda] = cij_0;
-            C[i + 1 + j * lda] = cij_1;
-            C[i + 2 + j * lda] = cij_2;
-            C[i + 3 + j * lda] = cij_3;
+                for (int k = 0; k < K; ++k)
+                {
+                    float bkj = B[k + j * lda];
+                    cij_0 += bkj * A[i + k * lda];
+                    cij_1 += bkj * A[i + 1 + k * lda];
+                    cij_2 += bkj * A[i + 2 + k * lda];
+                    cij_3 += bkj * A[i + 3 + k * lda];
+                }
+
+                C[i + j * lda] = cij_0;
+                C[i + 1 + j * lda] = cij_1;
+                C[i + 2 + j * lda] = cij_2;
+                C[i + 3 + j * lda] = cij_3;
+                
+                i += 4;
+            }
+            else
+            {
+                float cij = C[i + j * lda];
+
+                for (int k = 0; k < K; ++k)
+                {
+                    float bkj = B[k + j * lda];
+                    cij += bkj * A[i + k * lda];
+                }
+
+                C[i + j * lda] = cij;
+                i += 1;
+            }
         }
     }
 }
