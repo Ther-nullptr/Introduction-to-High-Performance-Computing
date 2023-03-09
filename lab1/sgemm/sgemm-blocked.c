@@ -24,31 +24,31 @@ static inline void do_block_divide_4x4(int lda, int M, int N, int K, float *A, f
         for (int j = 0; j < N; j += 4)
         {
             /* Compute C(i,j) */
-            register float c_00 = 0., c_01 = 0., c_02 = 0., c_03 = 0.,
+            float c_00 = 0., c_01 = 0., c_02 = 0., c_03 = 0.,
                            c_10 = 0., c_11 = 0., c_12 = 0., c_13 = 0.,
                            c_20 = 0., c_21 = 0., c_22 = 0., c_23 = 0.,
                            c_30 = 0., c_31 = 0., c_32 = 0., c_33 = 0.;
-            register float a_0k, a_1k, a_2k, a_3k;
-            register float b_k0, b_k1, b_k2, b_k3;
+            float a_0k, a_1k, a_2k, a_3k;
+            float b_k0, b_k1, b_k2, b_k3;
 
             c_00 = C(i, j);
-            c_10 = C(i, j + 1);
-            c_20 = C(i, j + 2);
-            c_30 = C(i, j + 3);
+            c_01 = C(i, j + 1);
+            c_02 = C(i, j + 2);
+            c_03 = C(i, j + 3);
 
-            c_01 = C(i + 1, j);
+            c_10 = C(i + 1, j);
             c_11 = C(i + 1, j + 1);
-            c_21 = C(i + 1, j + 2);
-            c_31 = C(i + 1, j + 3);
+            c_12 = C(i + 1, j + 2);
+            c_13 = C(i + 1, j + 3);
 
-            c_02 = C(i + 2, j);
-            c_12 = C(i + 2, j + 1);
+            c_20 = C(i + 2, j);
+            c_21 = C(i + 2, j + 1);
             c_22 = C(i + 2, j + 2);
-            c_32 = C(i + 2, j + 3);
+            c_23 = C(i + 2, j + 3);
 
-            c_03 = C(i + 3, j);
-            c_13 = C(i + 3, j + 1);
-            c_23 = C(i + 3, j + 2);
+            c_30 = C(i + 3, j);
+            c_31 = C(i + 3, j + 1);
+            c_32 = C(i + 3, j + 2);
             c_33 = C(i + 3, j + 3);
 
             float *p_b_k0, *p_b_k1, *p_b_k2, *p_b_k3;
@@ -65,10 +65,14 @@ static inline void do_block_divide_4x4(int lda, int M, int N, int K, float *A, f
                 a_2k = A(2 + i, k);
                 a_3k = A(3 + i, k);
 
-                b_k0 = *p_b_k0++;
-                b_k1 = *p_b_k1++;
-                b_k2 = *p_b_k2++;
-                b_k3 = *p_b_k3++;
+                b_k0 = *p_b_k0;
+                p_b_k0++;
+                b_k1 = *p_b_k1;
+                p_b_k1++;
+                b_k2 = *p_b_k2;
+                p_b_k2++;
+                b_k3 = *p_b_k3;
+                p_b_k3++;
 
                 c_00 += a_0k * b_k0;
                 c_01 += a_0k * b_k1;
@@ -92,23 +96,23 @@ static inline void do_block_divide_4x4(int lda, int M, int N, int K, float *A, f
             }
 
             C(i, j) = c_00;
-            C(i, j + 1) = c_10;
-            C(i, j + 2) = c_20;
-            C(i, j + 3) = c_30;
+            C(i, j + 1) = c_01;
+            C(i, j + 2) = c_02;
+            C(i, j + 3) = c_03;
 
-            C(i + 1, j) = c_01;
+            C(i + 1, j) = c_10;
             C(i + 1, j + 1) = c_11;
-            C(i + 1, j + 2) = c_21;
-            C(i + 1, j + 3) = c_31;
+            C(i + 1, j + 2) = c_12;
+            C(i + 1, j + 3) = c_13;
 
-            C(i + 2, j) = c_02;
-            C(i + 2, j + 1) = c_12;
+            C(i + 2, j) = c_20;
+            C(i + 2, j + 1) = c_21;
             C(i + 2, j + 2) = c_22;
-            C(i + 2, j + 3) = c_32;
+            C(i + 2, j + 3) = c_23;
 
-            C(i + 3, j) = c_03;
-            C(i + 3, j + 1) = c_13;
-            C(i + 3, j + 2) = c_23;
+            C(i + 3, j) = c_30;
+            C(i + 3, j + 1) = c_31;
+            C(i + 3, j + 2) = c_32;
             C(i + 3, j + 3) = c_33;
         }
     }
