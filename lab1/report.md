@@ -138,31 +138,49 @@ C[i + UNROLLING_NUM - 1][j] = A[i + UNROLLING_NUM - 1][k] * B[k][j]
 // strategy 1
 static inline void do_block_divide_unrolling_a(int lda, int M, int N, int K, float *A, float *B, float *C)
 {
-    /* For each row i of A */
-    for (int i = 0; i < M; ++i)
+    /* For each column j of B */
+    for (int j = 0; j < N; ++j)
     {
-        /* For each column j of B */
-        for (int j = 0; j < N; j += 4)
+        /* For each row i of A */
+        for (int i = 0; i < M;)
         {
-            /* Compute C(i,j) */
-            float cij_0 = C[i + j * lda]; // C(i, j)
-            float cij_1 = C[i + (j + 1) * lda]; // C(i, j + 1)
-            float cij_2 = C[i + (j + 2) * lda]; // C(i, j + 2)
-            float cij_3 = C[i + (j + 3) * lda]; // C(i, j + 3)
-
-            for (int k = 0; k < K; ++k)
+            if (M - i >= 4)
             {
-                float aik = A[i + k * lda]; // A(i, k)
-                cij_0 += aik * B[k + j * lda]; // C(i, j) += A(i, k) * B(k, j)
-                cij_1 += aik * B[k + (j + 1) * lda]; // C(i, j + 1) += A(i, k) * B(k, j + 1)
-                cij_2 += aik * B[k + (j + 2) * lda]; // C(i, j + 2) += A(i, k) * B(k, j + 2)
-                cij_3 += aik * B[k + (j + 3) * lda]; // C(i, j + 3) += A(i, k) * B(k, j + 3)
-            } 
+                /* Compute C(i,j) */
+                float cij_0 = C[i + j * lda];
+                float cij_1 = C[i + 1 + j * lda];
+                float cij_2 = C[i + 2 + j * lda];
+                float cij_3 = C[i + 3 + j * lda];
 
-            C[i + j * lda] = cij_0;
-            C[i + (j + 1) * lda] = cij_1;
-            C[i + (j + 2) * lda] = cij_2;
-            C[i + (j + 3) * lda] = cij_3;
+                for (int k = 0; k < K; ++k)
+                {
+                    float bkj = B[k + j * lda];
+                    cij_0 += bkj * A[i + k * lda];
+                    cij_1 += bkj * A[i + 1 + k * lda];
+                    cij_2 += bkj * A[i + 2 + k * lda];
+                    cij_3 += bkj * A[i + 3 + k * lda];
+                }
+
+                C[i + j * lda] = cij_0;
+                C[i + 1 + j * lda] = cij_1;
+                C[i + 2 + j * lda] = cij_2;
+                C[i + 3 + j * lda] = cij_3;
+                
+                i += 4;
+            }
+            else
+            {
+                float cij = C[i + j * lda];
+
+                for (int k = 0; k < K; ++k)
+                {
+                    float bkj = B[k + j * lda];
+                    cij += bkj * A[i + k * lda];
+                }
+
+                C[i + j * lda] = cij;
+                i += 1;
+            }
         }
     }
 }
@@ -171,30 +189,47 @@ static inline void do_block_divide_unrolling_a(int lda, int M, int N, int K, flo
 static inline void do_block_divide_unrolling_b(int lda, int M, int N, int K, float *A, float *B, float *C)
 {
     /* For each row i of A */
-    for (int i = 0; i < M; ++i)
+    for (int i = 0; i < M; i++)
     {
         /* For each column j of B */
-        for (int j = 0; j < N; j += 4)
+        for (int j = 0; j < N;)
         {
-            /* Compute C(i,j) */
-            float cij_0 = C[i + j * lda];
-            float cij_1 = C[i + (j + 1) * lda];
-            float cij_2 = C[i + (j + 2) * lda];
-            float cij_3 = C[i + (j + 3) * lda];
-
-            for (int k = 0; k < K; ++k)
+            if (N - j >= 4)
             {
-                float aik = A[i + k * lda];
-                cij_0 += aik * B[k + j * lda];
-                cij_1 += aik * B[k + (j + 1) * lda];
-                cij_2 += aik * B[k + (j + 2) * lda];
-                cij_3 += aik * B[k + (j + 3) * lda];
-            }
+                /* Compute C(i,j) */
+                float cij_0 = C[i + j * lda];
+                float cij_1 = C[i + (j + 1) * lda];
+                float cij_2 = C[i + (j + 2) * lda];
+                float cij_3 = C[i + (j + 3) * lda];
 
-            C[i + j * lda] = cij_0;
-            C[i + (j + 1) * lda] = cij_1;
-            C[i + (j + 2) * lda] = cij_2;
-            C[i + (j + 3) * lda] = cij_3;
+                for (int k = 0; k < K; ++k)
+                {
+                    float aik = A[i + k * lda];
+                    cij_0 += aik * B[k + j * lda];
+                    cij_1 += aik * B[k + (j + 1) * lda];
+                    cij_2 += aik * B[k + (j + 2) * lda];
+                    cij_3 += aik * B[k + (j + 3) * lda];
+                }
+
+                C[i + j * lda] = cij_0;
+                C[i + (j + 1) * lda] = cij_1;
+                C[i + (j + 2) * lda] = cij_2;
+                C[i + (j + 3) * lda] = cij_3;
+                j += 4;
+            }
+            else
+            {
+                float cij = C[i + j * lda];
+
+                for (int k = 0; k < K; ++k)
+                {
+                    float aik = A[i + k * lda];
+                    cij += aik * B[k + j * lda];
+                }
+
+                C[i + j * lda] = cij;
+                j += 1;
+            }
         }
     }
 }
@@ -204,10 +239,9 @@ static inline void do_block_divide_unrolling_b(int lda, int M, int N, int K, flo
 
 ![image-20230313102036789](https://s2.loli.net/2023/03/13/gYjd5zcS2TbixZ4.png)
 
-可以看出loop unrolling对于计算速度的提升有着很明显的效果。这里值得关注的有两件事：
+可以看出loop unrolling对于计算速度的提升有着很明显的效果。
 
-1. 相比于对A矩阵进行循环展开，对B矩阵进行循环展开可以获得更佳的效果，可能是因为此时的展开方法可以更有效地提升cache命中率。
-2. 循环展开方法的速度呈现出周期性的波动。这可能与CPU内部的cache机制有关系。
+> 这里值得关注的是：相比于对A矩阵进行循环展开，对B矩阵进行循环展开可以获得更佳的效果。这是因为在每一个`for (int k = 0; k < K; ++k)`循环中，`B`的内存是连续的，而`A`的内存是不连续的，对A进行循环展开时，需要重复加载`A`中的数据，访问地址的不连续拖慢了速度。
 
 ### 三、寄存器优化（Register Blocking）
 
@@ -695,6 +729,15 @@ static inline void do_block_divide_simd(int lda, int M, int N, int K, float *A, 
 计算结果如下：
 
 ![image-20230313102739195](https://s2.loli.net/2023/03/13/nqzWUTHb6tjwsxl.png)
+
+### 五、内存对齐
+
+根据前文实验可以得知，分块乘法有利于提高cache的命中率，从而提高速度，这本质上是由于计算元素
+在内存上具有相邻的位置。
+
+分块矩阵相乘时，尽管同一个矩阵的元素在内存上的位置是相近的，但不同矩阵之间难以保证这一点。我们对内存的布局进行进一步的调整：在进行每一次分块计算时，将需要读取的A、B矩阵复制到连续的内存中，计算得到的结果C也存储在连续的内存中，之后再写回原本的位置。这样确保每一个分块矩阵运算的过程更大程度地在cache中进行。
+
+### 六、数据重排
 
 ## 总结
 
