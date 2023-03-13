@@ -49,7 +49,33 @@ ptr_t stencil_27(ptr_t grid, ptr_t aux, const dist_grid_info_t *grid_info, int n
             {
                 for (int x = x_start; x < x_end; ++x)
                 {
-                    a1[INDEX(x, y, z, ldx, ldy)] = ALPHA_ZZZ * a0[INDEX(x, y, z, ldx, ldy)] + ALPHA_NZZ * a0[INDEX(x - 1, y, z, ldx, ldy)] + ALPHA_PZZ * a0[INDEX(x + 1, y, z, ldx, ldy)] + ALPHA_ZNZ * a0[INDEX(x, y - 1, z, ldx, ldy)] + ALPHA_ZPZ * a0[INDEX(x, y + 1, z, ldx, ldy)] + ALPHA_ZZN * a0[INDEX(x, y, z - 1, ldx, ldy)] + ALPHA_ZZP * a0[INDEX(x, y, z + 1, ldx, ldy)] + ALPHA_NNZ * a0[INDEX(x - 1, y - 1, z, ldx, ldy)] + ALPHA_PNZ * a0[INDEX(x + 1, y - 1, z, ldx, ldy)] + ALPHA_NPZ * a0[INDEX(x - 1, y + 1, z, ldx, ldy)] + ALPHA_PPZ * a0[INDEX(x + 1, y + 1, z, ldx, ldy)] + ALPHA_NZN * a0[INDEX(x - 1, y, z - 1, ldx, ldy)] + ALPHA_PZN * a0[INDEX(x + 1, y, z - 1, ldx, ldy)] + ALPHA_NZP * a0[INDEX(x - 1, y, z + 1, ldx, ldy)] + ALPHA_PZP * a0[INDEX(x + 1, y, z + 1, ldx, ldy)] + ALPHA_ZNN * a0[INDEX(x, y - 1, z - 1, ldx, ldy)] + ALPHA_ZPN * a0[INDEX(x, y + 1, z - 1, ldx, ldy)] + ALPHA_ZNP * a0[INDEX(x, y - 1, z + 1, ldx, ldy)] + ALPHA_ZPP * a0[INDEX(x, y + 1, z + 1, ldx, ldy)] + ALPHA_NNN * a0[INDEX(x - 1, y - 1, z - 1, ldx, ldy)] + ALPHA_PNN * a0[INDEX(x + 1, y - 1, z - 1, ldx, ldy)] + ALPHA_NPN * a0[INDEX(x - 1, y + 1, z - 1, ldx, ldy)] + ALPHA_PPN * a0[INDEX(x + 1, y + 1, z - 1, ldx, ldy)] + ALPHA_NNP * a0[INDEX(x - 1, y - 1, z + 1, ldx, ldy)] + ALPHA_PNP * a0[INDEX(x + 1, y - 1, z + 1, ldx, ldy)] + ALPHA_NPP * a0[INDEX(x - 1, y + 1, z + 1, ldx, ldy)] + ALPHA_PPP * a0[INDEX(x + 1, y + 1, z + 1, ldx, ldy)];
+                    a1[INDEX(x, y, z, ldx, ldy)] = ALPHA_ZZZ * a0[INDEX(x, y, z, ldx, ldy)] +
+                                                   ALPHA_NZZ * a0[INDEX(x - 1, y, z, ldx, ldy)] +
+                                                   ALPHA_PZZ * a0[INDEX(x + 1, y, z, ldx, ldy)] +
+                                                   ALPHA_ZNZ * a0[INDEX(x, y - 1, z, ldx, ldy)] +
+                                                   ALPHA_ZPZ * a0[INDEX(x, y + 1, z, ldx, ldy)] +
+                                                   ALPHA_ZZN * a0[INDEX(x, y, z - 1, ldx, ldy)] +
+                                                   ALPHA_ZZP * a0[INDEX(x, y, z + 1, ldx, ldy)] +
+                                                   ALPHA_NNZ * a0[INDEX(x - 1, y - 1, z, ldx, ldy)] +
+                                                   ALPHA_PNZ * a0[INDEX(x + 1, y - 1, z, ldx, ldy)] +
+                                                   ALPHA_NPZ * a0[INDEX(x - 1, y + 1, z, ldx, ldy)] +
+                                                   ALPHA_PPZ * a0[INDEX(x + 1, y + 1, z, ldx, ldy)] +
+                                                   ALPHA_NZN * a0[INDEX(x - 1, y, z - 1, ldx, ldy)] +
+                                                   ALPHA_PZN * a0[INDEX(x + 1, y, z - 1, ldx, ldy)] +
+                                                   ALPHA_NZP * a0[INDEX(x - 1, y, z + 1, ldx, ldy)] +
+                                                   ALPHA_PZP * a0[INDEX(x + 1, y, z + 1, ldx, ldy)] +
+                                                   ALPHA_ZNN * a0[INDEX(x, y - 1, z - 1, ldx, ldy)] +
+                                                   ALPHA_ZPN * a0[INDEX(x, y + 1, z - 1, ldx, ldy)] +
+                                                   ALPHA_ZNP * a0[INDEX(x, y - 1, z + 1, ldx, ldy)] +
+                                                   ALPHA_ZPP * a0[INDEX(x, y + 1, z + 1, ldx, ldy)] +
+                                                   ALPHA_NNN * a0[INDEX(x - 1, y - 1, z - 1, ldx, ldy)] +
+                                                   ALPHA_PNN * a0[INDEX(x + 1, y - 1, z - 1, ldx, ldy)] +
+                                                   ALPHA_NPN * a0[INDEX(x - 1, y + 1, z - 1, ldx, ldy)] +
+                                                   ALPHA_PPN * a0[INDEX(x + 1, y + 1, z - 1, ldx, ldy)] +
+                                                   ALPHA_NNP * a0[INDEX(x - 1, y - 1, z + 1, ldx, ldy)] +
+                                                   ALPHA_PNP * a0[INDEX(x + 1, y - 1, z + 1, ldx, ldy)] +
+                                                   ALPHA_NPP * a0[INDEX(x - 1, y + 1, z + 1, ldx, ldy)] +
+                                                   ALPHA_PPP * a0[INDEX(x + 1, y + 1, z + 1, ldx, ldy)];
                 }
             }
         }

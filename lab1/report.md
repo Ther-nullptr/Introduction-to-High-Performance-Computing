@@ -14,11 +14,11 @@
 
 * naive
 
-![image-20230308205952073](https://s2.loli.net/2023/03/13/8Tq9Szw4xfHFhvd.png)
+    ![image-20230308205952073](https://s2.loli.net/2023/03/13/8Tq9Szw4xfHFhvd.png)
 
 * blas
 
-  ![image-20230308210109178](https://s2.loli.net/2023/03/13/eWItJPvq7rUd4Yb.png)
+    ![image-20230308210109178](https://s2.loli.net/2023/03/13/eWItJPvq7rUd4Yb.png)
 
 据此可以得出以下结论：
 
@@ -87,6 +87,8 @@ void square_sgemm(int lda, float *A, float *B, float *C)
 ![image-20230308220825243](https://s2.loli.net/2023/03/13/DMTFAXKvws85ErQ.png)
 
 可见`BLOCK_SIZE`既不能太大也不能太小，之后的实验均采用默认值64。
+
+> 这里有一个有趣的现象：当分块的大小为$2^n$(如512,1024等)，运算速度会有明显的降低。这是由一种叫做**cache thrashing**的现象引起的(见[Cache Thrashing](https://blog.csdn.net/weixin_32820767/article/details/90717594))，不过之后的改进将减缓这一现象。
 
 ### 二、循环展开（Unrolling）
 
