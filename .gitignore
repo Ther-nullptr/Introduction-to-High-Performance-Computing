@@ -26,6 +26,7 @@
 
 *.o
 *.csv
+*.out
 
 benchmark-test
 benchmark-naive
