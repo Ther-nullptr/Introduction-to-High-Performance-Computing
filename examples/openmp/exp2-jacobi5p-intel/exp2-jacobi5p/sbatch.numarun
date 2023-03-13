@@ -1,0 +1,10 @@
+#!/bin/bash
+
+#SBATCH --nodes=1
+#SBATCH --exclusive
+ 
+echo "Testing $1 $2 $3 $4 on `hostname`"
+for (( counter=1; counter<=5; counter++ ))
+do
+	numactl --interleave=all ./$1 $2 $3 $4
+done

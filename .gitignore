@@ -31,3 +31,11 @@ benchmark-test
 benchmark-naive
 benchmark-blocked
 benchmark-blas
+pi_serial
+pi_manual
+pi_manual_pad
+pi_atomic
+pi_critical
+pi_locked
+pi_reduction
+pi_task

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+#SBATCH --nodes=1
+#SBATCH --exclusive
+ 
+echo "Testing $1 on `hostname`"
+for (( counter=1; counter<=10; counter++ ))
+do
+	./$1 $2 $3 $4
+done
