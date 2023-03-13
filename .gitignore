@@ -32,6 +32,8 @@ benchmark-test
 benchmark-naive
 benchmark-blocked
 benchmark-blas
+benchmark-optimized
+
 pi_serial
 pi_manual
 pi_manual_pad

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <mpi.h>
 #include <stdbool.h>
+#include <time.h>
 #include "common.h"
 
 extern const char *version_name;
@@ -106,6 +107,17 @@ int main(int argc, char **argv)
             printf("%d-point stencil - %s:\nSize (%d x %d x %d), Timestep %d\n", type, version_name, info.global_size_x, info.global_size_y, info.global_size_z, nt);
             printf("Preprocessing time %lfs\n", pre_time);
             printf("Computation time %lfs, Performance %lfGflop/s\n", t, gflops);
+
+            FILE *fp;
+            char filename[100];
+            time_t t_ = time(NULL);
+            struct tm tm = *localtime(&t_);
+            sprintf(filename, "data_%d-%d-%d_%d:%d:%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+            fp = fopen(filename, "w");
+            fprintf(fp, "%d-point stencil - %s:\nSize (%d x %d x %d), Timestep %d\n", type, version_name, info.global_size_x, info.global_size_y, info.global_size_z, nt);
+            fprintf(fp, "Preprocessing time %lf s\n", pre_time);
+            fprintf(fp, "Computation time %ld s, Performance %lf Gflop/s\n", t, gflops);
+            fclose(fp);
         }
         destroy_file_helper(&helper);
     }
