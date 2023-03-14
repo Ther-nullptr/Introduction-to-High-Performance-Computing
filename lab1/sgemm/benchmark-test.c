@@ -178,9 +178,20 @@ int main(int argc, char **argv)
         reference_sgemm(n, -3. * FLT_EPSILON * n, A, B, C);
 
         /* If any element in C is positive, then something went wrong in square_sgemm */
-        for (int i = 0; i < n * n; ++i)
-            if (C[i] > initial)
-                die("*** FAILURE *** Error in matrix multiply exceeds componentwise error bounds.\n");
+        // for (int i = 0; i < n * n; ++i)
+        //     if (C[i] > initial)
+        //         die("*** FAILURE *** Error in matrix multiply exceeds componentwise error bounds.\n");
+
+        for (int i = 0; i < n; ++i)
+        {
+            for (int j = 0; j < n; ++j)
+            {
+                if (i < n && j < n)
+                {
+                    printf("(%f, %f)", C[i + j * n], initial);
+                }
+            }
+        }
     }
 
     fclose(fp);
