@@ -136,7 +136,6 @@ C[i + UNROLLING_NUM - 1][j] = A[i + UNROLLING_NUM - 1][k] * B[k][j]
 
 ```cpp
 // strategy 1
-// strategy 1
 static inline void do_block_divide_unrolling_a(int lda, int M, int N, int K, float *A, float *B, float *C)
 {
     /* For each column j of B */
@@ -730,6 +729,15 @@ static inline void do_block_divide_simd(int lda, int M, int N, int K, float *A, 
 计算结果如下：
 
 ![image-20230313102739195](https://s2.loli.net/2023/03/13/nqzWUTHb6tjwsxl.png)
+
+### 五、内存对齐
+
+根据前文实验可以得知，分块乘法有利于提高cache的命中率，从而提高速度，这本质上是由于计算元素
+在内存上具有相邻的位置。
+
+分块矩阵相乘时，尽管同一个矩阵的元素在内存上的位置是相近的，但不同矩阵之间难以保证这一点。我们对内存的布局进行进一步的调整：在进行每一次分块计算时，将需要读取的A、B矩阵复制到连续的内存中，计算得到的结果C也存储在连续的内存中，之后再写回原本的位置。这样确保每一个分块矩阵运算的过程更大程度地在cache中进行。
+
+### 六、数据重排
 
 ## 总结
 
