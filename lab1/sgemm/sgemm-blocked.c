@@ -5,7 +5,7 @@
 const char *sgemm_desc = "Simple blocked sgemm.";
 
 #if !defined(BLOCK_SIZE)
-#define BLOCK_SIZE 40
+#define BLOCK_SIZE 64
 #endif
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
@@ -31,6 +31,11 @@ static inline void do_block_divide_simd(int lda, int M, int N, int K, float *A, 
             p_b_k1 = &B(0, 1 + j);
             p_b_k2 = &B(0, 2 + j);
             p_b_k3 = &B(0, 3 + j);
+
+            __m128 c_0 = _mm_load_ps(&C(i, 0 + j)); // c_00, c_10, c_20, c_30
+            __m128 c_1 = _mm_load_ps(&C(i, 1 + j)); // c_01, c_11, c_21, c_31
+            __m128 c_2 = _mm_load_ps(&C(i, 2 + j)); // c_02, c_12, c_22, c_32
+            __m128 c_3 = _mm_load_ps(&C(i, 3 + j)); // c_03, c_13, c_23, c_33
 
             for (int k = 0; k < K; k += 4)
             {
@@ -65,11 +70,6 @@ static inline void do_block_divide_simd(int lda, int M, int N, int K, float *A, 
                 p_b_k2 += 4;
                 p_b_k3 += 4;
 
-                __m128 c_0 = _mm_load_ps(&C(i, 0 + j)); // c_00, c_10, c_20, c_30
-                __m128 c_1 = _mm_load_ps(&C(i, 1 + j)); // c_01, c_11, c_21, c_31
-                __m128 c_2 = _mm_load_ps(&C(i, 2 + j)); // c_02, c_12, c_22, c_32
-                __m128 c_3 = _mm_load_ps(&C(i, 3 + j)); // c_03, c_13, c_23, c_33
-
                 c_0 = _mm_add_ps(c_0,
                                  _mm_add_ps(
                                      _mm_add_ps(_mm_mul_ps(a_0, b_00), _mm_mul_ps(a_1, b_01)),
@@ -90,16 +90,16 @@ static inline void do_block_divide_simd(int lda, int M, int N, int K, float *A, 
                                      _mm_add_ps(_mm_mul_ps(a_0, b_30), _mm_mul_ps(a_1, b_31)),
                                      _mm_add_ps(_mm_mul_ps(a_2, b_32), _mm_mul_ps(a_3, b_33))));
 
-                _mm_store_ps(&C(i, 0 + j), c_0);
-                _mm_store_ps(&C(i, 1 + j), c_1);
-                _mm_store_ps(&C(i, 2 + j), c_2);
-                _mm_store_ps(&C(i, 3 + j), c_3);
             }
+            _mm_store_ps(&C(i, 0 + j), c_0);
+            _mm_store_ps(&C(i, 1 + j), c_1);
+            _mm_store_ps(&C(i, 2 + j), c_2);
+            _mm_store_ps(&C(i, 3 + j), c_3);
         }
     }
 }
 
-void copy_memory_continuously(int lda, int M, int N, int K, float *A, float *B, float *C, float *ABC)
+static inline void copy_memory_continuously(int lda, int M, int N, int K, float *A, float *B, float *C, float *ABC)
 {
     // copy A
     for (int k = 0; k < K; k++)
@@ -126,7 +126,7 @@ void copy_memory_continuously(int lda, int M, int N, int K, float *A, float *B, 
     }
 }
 
-void write_back(int lda, int M, int N, int K, float *C, float *ABC)
+static inline void write_back(int lda, int M, int N, int K, float *C, float *ABC)
 {
     for (int j = 0; j < N; j++)
     {
@@ -147,25 +147,25 @@ void square_sgemm(int lda, float *A, float *B, float *C)
     /* For each block-row of A */
     for (int j = 0; j < lda; j += BLOCK_SIZE)
     {
+        int N = min(BLOCK_SIZE, lda - j);
+        int N_padding = (N % 4 == 0) ? N : ((N / 4 + 1) * 4);
         /* For each block-column of B */
         for (int i = 0; i < lda; i += BLOCK_SIZE)
         {
+            int M = min(BLOCK_SIZE, lda - i);
+            int M_padding = (M % 4 == 0) ? M : ((M / 4 + 1) * 4);
             /* Accumulate block sgemms into block of C */
             for (int k = 0; k < lda; k += BLOCK_SIZE)
             {
                 /* Correct block dimensions if block "goes off edge of" the matrix */
-                int M = min(BLOCK_SIZE, lda - i);
-                int N = min(BLOCK_SIZE, lda - j);
                 int K = min(BLOCK_SIZE, lda - k);
+                int K_padding = (K % 4 == 0) ? K : ((K / 4 + 1) * 4);
                 memset(ABC, 0, sizeof(ABC));
 
                 /* copy the A\B\C matrix into continue memory */
                 copy_memory_continuously(lda, M, N, K, A + i + k * lda, B + k + j * lda, C + i + j * lda, ABC);
 
                 /* perform individual block sgemm */
-                int M_padding = (M % 4 == 0) ? M : ((M / 4 + 1) * 4);
-                int N_padding = (N % 4 == 0) ? N : ((N / 4 + 1) * 4);
-                int K_padding = (K % 4 == 0) ? K : ((K / 4 + 1) * 4);
                 do_block_divide_simd(BLOCK_SIZE, M_padding, N_padding, K_padding, ABC, ABC + BLOCK_SIZE * BLOCK_SIZE, ABC + 2 * BLOCK_SIZE * BLOCK_SIZE);
 
                 /* writeback the data */
