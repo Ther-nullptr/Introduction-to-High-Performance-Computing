@@ -5,7 +5,7 @@
 const char *sgemm_desc = "Simple blocked sgemm.";
 
 #if !defined(BLOCK_SIZE)
-#define BLOCK_SIZE 40
+#define BLOCK_SIZE 64
 #endif
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
@@ -31,6 +31,11 @@ static inline void do_block_divide_simd(int lda, int M, int N, int K, float *A, 
             p_b_k1 = &B(0, 1 + j);
             p_b_k2 = &B(0, 2 + j);
             p_b_k3 = &B(0, 3 + j);
+
+            __m128 c_0 = _mm_load_ps(&C(i, 0 + j)); // c_00, c_10, c_20, c_30
+            __m128 c_1 = _mm_load_ps(&C(i, 1 + j)); // c_01, c_11, c_21, c_31
+            __m128 c_2 = _mm_load_ps(&C(i, 2 + j)); // c_02, c_12, c_22, c_32
+            __m128 c_3 = _mm_load_ps(&C(i, 3 + j)); // c_03, c_13, c_23, c_33
 
             for (int k = 0; k < K; k += 4)
             {
@@ -65,11 +70,6 @@ static inline void do_block_divide_simd(int lda, int M, int N, int K, float *A, 
                 p_b_k2 += 4;
                 p_b_k3 += 4;
 
-                __m128 c_0 = _mm_load_ps(&C(i, 0 + j)); // c_00, c_10, c_20, c_30
-                __m128 c_1 = _mm_load_ps(&C(i, 1 + j)); // c_01, c_11, c_21, c_31
-                __m128 c_2 = _mm_load_ps(&C(i, 2 + j)); // c_02, c_12, c_22, c_32
-                __m128 c_3 = _mm_load_ps(&C(i, 3 + j)); // c_03, c_13, c_23, c_33
-
                 c_0 = _mm_add_ps(c_0,
                                  _mm_add_ps(
                                      _mm_add_ps(_mm_mul_ps(a_0, b_00), _mm_mul_ps(a_1, b_01)),
@@ -90,11 +90,11 @@ static inline void do_block_divide_simd(int lda, int M, int N, int K, float *A, 
                                      _mm_add_ps(_mm_mul_ps(a_0, b_30), _mm_mul_ps(a_1, b_31)),
                                      _mm_add_ps(_mm_mul_ps(a_2, b_32), _mm_mul_ps(a_3, b_33))));
 
-                _mm_store_ps(&C(i, 0 + j), c_0);
-                _mm_store_ps(&C(i, 1 + j), c_1);
-                _mm_store_ps(&C(i, 2 + j), c_2);
-                _mm_store_ps(&C(i, 3 + j), c_3);
             }
+            _mm_store_ps(&C(i, 0 + j), c_0);
+            _mm_store_ps(&C(i, 1 + j), c_1);
+            _mm_store_ps(&C(i, 2 + j), c_2);
+            _mm_store_ps(&C(i, 3 + j), c_3);
         }
     }
 }
