@@ -5,13 +5,14 @@
 const char *sgemm_desc = "Simple blocked sgemm.";
 
 #if !defined(BLOCK_SIZE)
-#define BLOCK_SIZE 64
+#define BLOCK_SIZE 256
 #endif
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define A(i, j) A[(j)*lda + (i)]
 #define B(i, j) B[(j)*lda + (i)]
 #define C(i, j) C[(j)*lda + (i)]
+#define temp_array(i, j) temp_array[(j)*lda + (i)]
 
 /* This auxiliary subroutine performs a smaller sgemm operation
  *  C := C + A * B
@@ -39,10 +40,10 @@ static inline void do_block_divide_simd(int lda, int M, int N, int K, float *A, 
 
             for (int k = 0; k < K; k += 4)
             {
-                __m128 a_0 = _mm_load_ps(&A(i, k)); // a_0k, a_1k, a_2k, a_3k
-                __m128 a_1 = _mm_load_ps(&A(i, k + 1));
-                __m128 a_2 = _mm_load_ps(&A(i, k + 2));
-                __m128 a_3 = _mm_load_ps(&A(i, k + 3));
+                __m128 a_0 = _mm_load_ps(&A(4 * k, i)); // a_0k, a_1k, a_2k, a_3k
+                __m128 a_1 = _mm_load_ps(&A(4 * k + 4, i));
+                __m128 a_2 = _mm_load_ps(&A(4 * k + 8, i));
+                __m128 a_3 = _mm_load_ps(&A(4 * k + 12, i));
 
                 // the position of c_00, c_10, c_20, c_30 is continuous
                 __m128 b_00 = _mm_set1_ps(*p_b_k0); // b_1j, b_1j, b_1j, b_1j
@@ -89,7 +90,6 @@ static inline void do_block_divide_simd(int lda, int M, int N, int K, float *A, 
                                  _mm_add_ps(
                                      _mm_add_ps(_mm_mul_ps(a_0, b_30), _mm_mul_ps(a_1, b_31)),
                                      _mm_add_ps(_mm_mul_ps(a_2, b_32), _mm_mul_ps(a_3, b_33))));
-
             }
             _mm_store_ps(&C(i, 0 + j), c_0);
             _mm_store_ps(&C(i, 1 + j), c_1);
@@ -99,7 +99,7 @@ static inline void do_block_divide_simd(int lda, int M, int N, int K, float *A, 
     }
 }
 
-void copy_memory_continuously(int lda, int M, int N, int K, float *A, float *B, float *C, float *ABC)
+static inline void copy_memory_continuously(int lda, int M, int N, int K, float *A, float *B, float *C, float *ABC)
 {
     // copy A
     for (int k = 0; k < K; k++)
@@ -126,7 +126,29 @@ void copy_memory_continuously(int lda, int M, int N, int K, float *A, float *B, 
     }
 }
 
-void write_back(int lda, int M, int N, int K, float *C, float *ABC)
+static inline void transpose_A(int lda, int M, int N, int K, float* ABC)
+{
+    // transpose A in ABC
+    float temp_array[BLOCK_SIZE * BLOCK_SIZE] __attribute__((aligned(64)));
+    for (int i = 0; i < M; i += 4)
+    {
+        for (int k = 0; k < K; k += 4)
+        {
+            __m128 temp1 = _mm_load_ps(ABC + k * BLOCK_SIZE + i);
+            __m128 temp2 = _mm_load_ps(ABC + (k + 1) * BLOCK_SIZE + i);
+            __m128 temp3 = _mm_load_ps(ABC + (k + 2) * BLOCK_SIZE + i);
+            __m128 temp4 = _mm_load_ps(ABC + (k + 3) * BLOCK_SIZE + i);
+
+            _mm_store_ps(&temp_array(4 * k, i), temp1);
+            _mm_store_ps(&temp_array(4 * k + 4, i), temp2);
+            _mm_store_ps(&temp_array(4 * k + 8, i), temp3);
+            _mm_store_ps(&temp_array(4 * k + 12, i), temp4);
+        }
+    }
+    memcpy(ABC, temp_array, BLOCK_SIZE * BLOCK_SIZE * sizeof(float));
+}
+
+static inline void write_back(int lda, int M, int N, int K, float *C, float *ABC)
 {
     for (int j = 0; j < N; j++)
     {
@@ -148,29 +170,32 @@ void square_sgemm(int lda, float *A, float *B, float *C)
     for (int j = 0; j < lda; j += BLOCK_SIZE)
     {
         /* For each block-column of B */
-        for (int i = 0; i < lda; i += BLOCK_SIZE)
+        int N = min(BLOCK_SIZE, lda - j);
+        int N_padding = (N % 4 == 0) ? N : ((N / 4 + 1) * 4);
+        for (int k = 0; k < lda; k += BLOCK_SIZE)
         {
+            int K = min(BLOCK_SIZE, lda - k);
+            int K_padding = (K % 4 == 0) ? K : ((K / 4 + 1) * 4);
             /* Accumulate block sgemms into block of C */
-            for (int k = 0; k < lda; k += BLOCK_SIZE)
+            for (int i = 0; i < lda; i += BLOCK_SIZE)
             {
                 /* Correct block dimensions if block "goes off edge of" the matrix */
                 int M = min(BLOCK_SIZE, lda - i);
-                int N = min(BLOCK_SIZE, lda - j);
-                int K = min(BLOCK_SIZE, lda - k);
+                int M_padding = (M % 4 == 0) ? M : ((M / 4 + 1) * 4);
+                
                 memset(ABC, 0, sizeof(ABC));
 
                 /* copy the A\B\C matrix into continue memory */
                 copy_memory_continuously(lda, M, N, K, A + i + k * lda, B + k + j * lda, C + i + j * lda, ABC);
 
+                transpose_A(BLOCK_SIZE, M_padding, N_padding, K_padding, ABC);
                 /* perform individual block sgemm */
-                int M_padding = (M % 4 == 0) ? M : ((M / 4 + 1) * 4);
-                int N_padding = (N % 4 == 0) ? N : ((N / 4 + 1) * 4);
-                int K_padding = (K % 4 == 0) ? K : ((K / 4 + 1) * 4);
                 do_block_divide_simd(BLOCK_SIZE, M_padding, N_padding, K_padding, ABC, ABC + BLOCK_SIZE * BLOCK_SIZE, ABC + 2 * BLOCK_SIZE * BLOCK_SIZE);
 
                 /* writeback the data */
                 write_back(lda, M, N, K, C + i + j * lda, ABC + 2 * BLOCK_SIZE * BLOCK_SIZE);
             }
         }
+        
     }
 }
