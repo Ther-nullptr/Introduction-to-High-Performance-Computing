@@ -6,6 +6,25 @@
 2. 掌握主要的体系结构优化手段
 3. 掌握常见的并行计算工具
 
+## 工程说明
+
+本项目实现了矩阵相乘的多种优化的方式，存放于若干个git branch上：
+```bash
+$ git branch -v
+  master  # 主分支，与alignment-reset(本项目的sota)一致 
+  openmpi-options  # 一、benchmark分析及其编译优化
+  unrolling # 二、循环展开（A）  
+  unrolling-2 # 二、循环展开（B）
+  register # 三、寄存器优化
+  simd # 四、单指令多数据
+  alignment # 五、内存对齐    
+  alignment-reset # 六、数据重排
+  register-alignment # 以下均已废弃 
+  debug              
+  debug2             
+  debug3        
+```
+
 ## 实验过程
 
 ### 〇、上限下限分析
