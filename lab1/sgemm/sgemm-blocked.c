@@ -5,7 +5,7 @@
 const char *sgemm_desc = "Simple blocked sgemm.";
 
 #if !defined(BLOCK_SIZE)
-#define BLOCK_SIZE 260
+#define BLOCK_SIZE 8
 #endif
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
