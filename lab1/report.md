@@ -6,6 +6,25 @@
 2. 掌握主要的体系结构优化手段
 3. 掌握常见的并行计算工具
 
+## 工程说明
+
+本项目实现了矩阵相乘的多种优化的方式，存放于若干个git branch上：
+```bash
+$ git branch -v
+  master  # 主分支，与alignment-reset(本项目的sota)一致 
+  openmpi-options  # 一、benchmark分析及其编译优化
+  unrolling # 二、循环展开（A）  
+  unrolling-2 # 二、循环展开（B）
+  register # 三、寄存器优化
+  simd # 四、单指令多数据
+  alignment # 五、内存对齐    
+  alignment-reset # 六、数据重排
+  register-alignment # 以下均已废弃 
+  debug              
+  debug2             
+  debug3        
+```
+
 ## 实验过程
 
 ### 〇、上限下限分析
@@ -88,9 +107,11 @@ void square_sgemm(int lda, float *A, float *B, float *C)
 
 可见`BLOCK_SIZE`既不能太大也不能太小，之后的实验均采用默认值64。
 
+> 这里可以观察到一个奇怪的现象：当矩阵尺寸为$2^n$整数倍时，计算速度会发生明显的降低。原因详见[Cache thrashing, general help in understanding](https://stackoverflow.com/questions/21551292/cache-thrashing-general-help-in-understanding)，之后的改进将解决这一个问题。
+
 ### 二、循环展开（Unrolling）
 
-借鉴...中的思路，我们采用循环展开（loop unrolling）的方法，每次迭代计算`UNROLLING_NUM`个元素，这样在内层循环中可以实现`UNROLLING_NUM`次数据复用。
+借鉴CSAPP中的思路，我们采用循环展开（loop unrolling）的方法，每次迭代计算`UNROLLING_NUM`个元素，这样在内层循环中可以实现`UNROLLING_NUM`次数据复用。
 
 我们假设程序中的二维矩阵是按照列优先存储的，则原始的矩阵乘法可以写作：
 
@@ -242,6 +263,10 @@ static inline void do_block_divide_unrolling_b(int lda, int M, int N, int K, flo
 可以看出loop unrolling对于计算速度的提升有着很明显的效果。
 
 > 这里值得关注的是：相比于对A矩阵进行循环展开，对B矩阵进行循环展开可以获得更佳的效果。这是因为在每一个`for (int k = 0; k < K; ++k)`循环中，`B`的内存是连续的，而`A`的内存是不连续的，对A进行循环展开时，需要重复加载`A`中的数据，访问地址的不连续拖慢了速度。
+<<<<<<< HEAD
+=======
+> 
+>>>>>>> alignment-reset
 
 ### 三、寄存器优化（Register Blocking）
 
@@ -532,7 +557,7 @@ int main()
 | -Og  | 0.013843 s | 0.106731 s |
 | -O1  | 0.007443 s | 0.096685 s |
 
-可见向量化的计算相比于普通的运算方法，速度有很大的提升。对此，我们使用SSE指令优化之前的计算（同时考虑边界情况）：
+可见向量化的计算相比于普通的运算方法，速度有很大的提升。这是由于SSE指令将4x4矩阵的乘加数从64次减少到了16次。对此，我们使用SSE指令优化之前的计算（同时考虑边界情况）：
 
 ```cpp
 static inline void do_block_divide_simd(int lda, int M, int N, int K, float *A, float *B, float *C)
@@ -726,22 +751,129 @@ static inline void do_block_divide_simd(int lda, int M, int N, int K, float *A, 
 }
 ```
 
+代码的大致逻辑是：在每一个4x4矩阵小块的乘法中，我们首先将A矩阵的权重按列加载到4个MMX寄存器中，然后将B矩阵中一行的权重广播（broadcost）到4个寄存器中，之后进行乘加，并遍历完B矩阵中的每一行，实现向量化计算。
+
 计算结果如下：
 
 ![image-20230313102739195](https://s2.loli.net/2023/03/13/nqzWUTHb6tjwsxl.png)
 
 ### 五、内存对齐
 
-根据前文实验可以得知，分块乘法有利于提高cache的命中率，从而提高速度，这本质上是由于计算元素
-在内存上具有相邻的位置。
+根据前文实验可以得知，分块乘法有利于提高cache的命中率，从而提高速度，这本质上是由于计算元素在内存上具有相邻的位置，大大节约了数据的访存时间。
 
 分块矩阵相乘时，尽管同一个矩阵的元素在内存上的位置是相近的，但不同矩阵之间难以保证这一点。我们对内存的布局进行进一步的调整：在进行每一次分块计算时，将需要读取的A、B矩阵复制到连续的内存中，计算得到的结果C也存储在连续的内存中，之后再写回原本的位置。这样确保每一个分块矩阵运算的过程更大程度地在cache中进行。
 
+```c++
+// function definition
+static inline void copy_memory_continuously(int lda, int M, int N, int K, float *A, float *B, float *C, float *ABC)
+{
+    // copy A
+    for (int k = 0; k < K; k++)
+    {
+        float *p_ABC = ABC + k * BLOCK_SIZE;
+        float *p_A = A + k * lda;
+        memcpy(p_ABC, p_A, M * sizeof(float));
+    }
+
+    // copy B
+    for (int j = 0; j < N; j++)
+    {
+        float *p_ABC = ABC + j * BLOCK_SIZE + BLOCK_SIZE * BLOCK_SIZE;
+        float *p_B = B + j * lda;
+        memcpy(p_ABC, p_B, K * sizeof(float));
+    }
+
+    // copy C
+    for (int j = 0; j < N; j++)
+    {
+        float *p_ABC = ABC + j * BLOCK_SIZE + 2 * BLOCK_SIZE * BLOCK_SIZE;
+        float *p_C = C + j * lda;
+        memcpy(p_ABC, p_C, M * sizeof(float));
+    }
+}
+
+static inline void write_back(int lda, int M, int N, int K, float *C, float *ABC)
+{
+    for (int j = 0; j < N; j++)
+    {
+        float *p_ABC = ABC + j * BLOCK_SIZE;
+        float *p_C = C + j * lda;
+        memcpy(p_C, p_ABC, M * sizeof(float));
+    }
+}
+
+// call
+memset(ABC, 0, sizeof(ABC));
+/* copy the A\B\C matrix into continue memory */
+copy_memory_continuously(lda, M, N, K, A + i + k * lda, B + k + j * lda, C + i + j * lda, ABC);
+/* perform individual block sgemm */
+do_block_divide_simd(BLOCK_SIZE, M_padding, N_padding, K_padding, ABC, ABC + BLOCK_SIZE * BLOCK_SIZE, ABC + 2 * BLOCK_SIZE * BLOCK_SIZE);
+/* writeback the data */
+write_back(lda, M, N, K, C + i + j * lda, ABC + 2 * BLOCK_SIZE * BLOCK_SIZE);
+```
+
+而这一操作也会引入一个潜在的好处：在复制连续内存时，我们同时对矩阵进行padding，这样对于尺寸的大小不能被4整除的矩阵，可以不必考虑边界情况，从而大大简化了代码逻辑。
+
+计算结果如下：
+
+![image-20230316215424694.png](https://s2.loli.net/2023/03/16/P7ENM3Q9cSLDUwz.png)
+
 ### 六、数据重排
+
+我们考虑上一步中计算时`A`的访存：
+
+```cpp
+for (int k = 0; k < K; k++)
+{
+    __m128 a_0 = _mm_load_ps(&A(i, k)); // a_0k, a_1k, a_2k, a_3k
+    __m128 a_1 = _mm_load_ps(&A(i, k + 1));
+    __m128 a_2 = _mm_load_ps(&A(i, k + 2));
+    __m128 a_3 = _mm_load_ps(&A(i, k + 3));
+    // ...
+}
+```
+
+在进行每个新的循环，加载A中的元素时，我们会发现访问的内存并非连续，这可能导致潜在的开销。为了减少这一开销，我们对矩阵A中的元素进行重排，如图所示：
+
+具体来说，我们将A、B、C这三个矩阵加载到一片连续的内存中之后，我们对A中的元素进行重新分配，使得其在循环过程中刚好可以做到对内存的连续访问：
+
+```cpp
+static inline void transpose_A(int lda, int M, int N, int K, float* ABC, float* temp_array)
+{
+    // transpose A in ABC
+    for (int i = 0; i < M; i += 4)
+    {
+        for (int k = 0; k < K; k += 4)
+        {
+            __m128 temp = _mm_load_ps(ABC + k * BLOCK_SIZE + i);
+            _mm_store_ps(&temp_array(4 * k, i), temp);
+            temp = _mm_load_ps(ABC + (k + 1) * BLOCK_SIZE + i);
+            _mm_store_ps(&temp_array(4 * k + 4, i), temp);
+            temp = _mm_load_ps(ABC + (k + 2) * BLOCK_SIZE + i);
+            _mm_store_ps(&temp_array(4 * k + 8, i), temp);
+            temp = _mm_load_ps(ABC + (k + 3) * BLOCK_SIZE + i);
+            _mm_store_ps(&temp_array(4 * k + 12, i), temp);
+        }
+    }
+    memcpy(ABC, temp_array, BLOCK_SIZE * BLOCK_SIZE * sizeof(float));
+}
+```
+
+改变`BLOCK_SIZE`，计算结果如下：
+
+![image.png](https://s2.loli.net/2023/03/16/9XuHaMzjZKdN724.png)
+
+注意这里测试通常取`BLOCK_SIZE`为$2^n+4$，是因为对于测例中尺寸大小为$2^n+1$的矩阵来说，padding的程度较小，减小额外开销，且`BLOCK_SIZE`本身可以被4整除，不会对代码逻辑造成干扰。可以发现，当`BLOCK_SIZE`较大时，在大尺寸矩阵上的表现较为优秀，但在小尺寸上的矩阵表现不佳，反之同理，这与transpose引入的额外开销有关。对此可以根据矩阵的规模选取`BLOCK_SIZE`的大小：
+
+* (0, 64]: 64
+* (64, 256]: 260
+* (256, 1025]: 516
 
 ## 总结
 
-![image-20230313103810821](https://s2.loli.net/2023/03/13/4Kv8uIE2Z3xeQFJ.png)
+整个实验流程中的Gflops曲线变化如下：
+
+![image.png](https://s2.loli.net/2023/03/16/kJBOM92Ai7HFhdp.png)
 
 ## 特别说明
 
@@ -766,12 +898,20 @@ fclose(fp);
 
 ## 参考文献
 
-[^1]: [深入浅出GPU优化系列：GEMM优化（一）](https://zhuanlan.zhihu.com/p/435908830)
-[^2]: [通用矩阵乘（GEMM）优化与卷积计算](https://zhuanlan.zhihu.com/p/66958390)
-[^3]: [Instructions函数对照表：01 mmintrin.h与MMX指令集](https://www.cnblogs.com/zyl910/archive/2012/07/19/intrin01_mmx.html)
-[^4]: [Intel® Intrinsics Guide](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html)
-[^5]: [SIMD指令集](https://zhuanlan.zhihu.com/p/31271788)
-[^6]: [SIMD](https://www.cnblogs.com/zyl910/archive/2012/04/26/md00.html)
-[^7]: [如何加速矩阵乘法——优化GEMM (CPU单线程篇)](https://renzibei.com/2021/06/30/optimize-gemm/)
-[^8]: [SIMD简介](https://zhuanlan.zhihu.com/p/55327037)
-[^9]: [GCC编译优化和调试选项](http://walkerdu.com/2020/04/22/gcc_optimization/#Ofast)
+* [深入浅出GPU优化系列：GEMM优化（一）](https://zhuanlan.zhihu.com/p/435908830)
+
+* [通用矩阵乘（GEMM）优化与卷积计算](https://zhuanlan.zhihu.com/p/66958390)
+
+* [Instructions函数对照表：01 mmintrin.h与MMX指令集](https://www.cnblogs.com/zyl910/archive/2012/07/19/intrin01_mmx.html)
+
+*  [Intel® Intrinsics Guide](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html)
+
+* [SIMD指令集](https://zhuanlan.zhihu.com/p/31271788)
+
+* [SIMD](https://www.cnblogs.com/zyl910/archive/2012/04/26/md00.html)
+
+* [如何加速矩阵乘法——优化GEMM (CPU单线程篇)](https://renzibei.com/2021/06/30/optimize-gemm/)
+
+* [SIMD简介](https://zhuanlan.zhihu.com/p/55327037)
+
+*  [GCC编译优化和调试选项](http://walkerdu.com/2020/04/22/gcc_optimization/#Ofast)
