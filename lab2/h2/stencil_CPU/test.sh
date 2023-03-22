@@ -7,7 +7,7 @@ if [ "$#" -ne 2 ]; then
   exit 1
 fi
 
-export  DAPL_DBG_TYPE=0
+export DAPL_DBG_TYPE=0
 
 DATAPATH=/home/2023-spring/data/stencil_data
 

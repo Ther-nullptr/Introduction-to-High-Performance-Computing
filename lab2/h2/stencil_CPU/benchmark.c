@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 
             printf("%d-point stencil - %s:\nSize (%d x %d x %d), Timestep %d\n", type, version_name, info.global_size_x, info.global_size_y, info.global_size_z, nt);
             printf("Preprocessing time %lfs\n", pre_time);
-            printf("Computation time %lfs, Performance %lfGflop/s\n", t, gflops);
+            printf("Computation time %lf s, Performance %lf Gflop/s\n", t, gflops);
 
             FILE *fp;
             char filename[100];
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
             fp = fopen(filename, "w");
             fprintf(fp, "%d-point stencil - %s:\nSize (%d x %d x %d), Timestep %d\n", type, version_name, info.global_size_x, info.global_size_y, info.global_size_z, nt);
             fprintf(fp, "Preprocessing time %lf s\n", pre_time);
-            fprintf(fp, "Computation time %ld s, Performance %lf Gflop/s\n", t, gflops);
+            fprintf(fp, "Computation time %lf s, Performance %lf Gflop/s\n", t, gflops);
             fclose(fp);
         }
         destroy_file_helper(&helper);
