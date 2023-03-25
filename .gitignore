@@ -28,6 +28,10 @@
 *.csv
 *.out
 *.data
+*.zip
+*.txt
+
+stencil_CPU-master/
 
 benchmark-test
 benchmark-naive

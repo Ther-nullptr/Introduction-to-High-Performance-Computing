@@ -42,7 +42,7 @@ ptr_t stencil_27(ptr_t grid, ptr_t aux, const dist_grid_info_t *grid_info, int n
     {
         cptr_t a0 = buffer[t % 2];
         ptr_t a1 = buffer[(t + 1) % 2];
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic)
         for (int z = z_start; z < z_end; ++z)
         {
             for (int y = y_start; y < y_end; ++y)

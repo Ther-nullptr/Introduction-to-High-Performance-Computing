@@ -1,8 +1,8 @@
 
 CC = mpicc 
-OPT = -O3 -fomit-frame-pointer -ffast-math
-CFLAGS = -Wall -std=c99 $(OPT) -fopenmp
-LDFLAGS = -Wall -fopenmp -lm
+OPT = -O3 -fomit-frame-pointer -ffast-math -march=native 
+CFLAGS = -w -std=c99 $(OPT) -fopenmp
+LDFLAGS = -Wall -fopenmp -lm $(OPT)
 LDLIBS = $(LDFLAGS)
 
 targets = benchmark-naive benchmark-optimized

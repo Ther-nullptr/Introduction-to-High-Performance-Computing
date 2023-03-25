@@ -5,8 +5,14 @@
 const char *version_name = "Optimized version";
 #include "common.h"
 
+#ifndef BLOCK_X
 #define BLOCK_X 256
-#define BLOCK_Y 256
+#endif
+
+#ifndef BLOCK_Y
+#define BLOCK_Y 8
+#endif
+
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define INDEX_NEW(xx, yy, ldxx) ((xx) + (ldxx) * (yy))
 
@@ -52,7 +58,6 @@ ptr_t stencil_27(ptr_t grid, ptr_t aux, const dist_grid_info_t *grid_info, int n
     {
         cptr_t restrict a0 = buffer[t % 2];
         ptr_t restrict a1 = buffer[(t + 1) % 2];
-
         for (int yy = y_start; yy < y_end; yy += BLOCK_Y)
         {
             int FIXED_BLOCK_Y = min(BLOCK_Y, y_end - yy); // consider the edge situation
@@ -64,16 +69,15 @@ ptr_t stencil_27(ptr_t grid, ptr_t aux, const dist_grid_info_t *grid_info, int n
                 ptr_t a1_block = a1 + z_start * ldx * ldy + yy * ldx + xx;
 
                 // get the small block value to read
-                cptr_t a0_block_Z = a0 + z_start * ldx * ldy + yy * ldx + xx;
-                cptr_t a0_block_P = a0 + (z_start + 1) * ldx * ldy + yy * ldx + xx;
-                cptr_t a0_block_N = a0 + (z_start - 1) * ldx * ldy + yy * ldx + xx;
+                ptr_t a0_block_Z = a0 + z_start * ldx * ldy + yy * ldx + xx;
+                ptr_t a0_block_P = a0 + (z_start + 1) * ldx * ldy + yy * ldx + xx;
+                ptr_t a0_block_N = a0 + (z_start - 1) * ldx * ldy + yy * ldx + xx;
 
                 // loop inside block
                 for (int z = z_start; z < z_end; ++z)
                 {
                     for (int y = 0; y < FIXED_BLOCK_Y; ++y)
                     {
-                        #pragma unroll
                         for (int x = 0; x < FIXED_BLOCK_X; ++x)
                         {
                             a1_block[INDEX_NEW(x, y, ldx)] = \
