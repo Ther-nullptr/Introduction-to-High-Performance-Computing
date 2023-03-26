@@ -62,13 +62,13 @@ extern "C"
 {
 #endif
 
-    /* type == 7 or type == 27 */
-    void create_dist_grid(dist_grid_info_t *info, int stencil_type);
-    void destroy_dist_grid(dist_grid_info_t *info);
-    /* `arr` is the input array, `aux` is an auxiliary buffer
-     * return the pointer to the output array
-     * the returned value should be either equal to `arr` or `aux` */
-    ptr_t stencil_27(ptr_t arr, ptr_t aux, const dist_grid_info_t *info, int nt);
+/* type == 7 or type == 27 */
+void create_dist_grid(dist_grid_info_t *info, int stencil_type);
+void destroy_dist_grid(dist_grid_info_t *info);
+/* `arr` is the input array, `aux` is an auxiliary buffer
+    * return the pointer to the output array
+    * the returned value should be either equal to `arr` or `aux` */
+ptr_t stencil_27(ptr_t arr, ptr_t aux, const dist_grid_info_t *info, int nt);
 
 #ifdef __cplusplus
 }

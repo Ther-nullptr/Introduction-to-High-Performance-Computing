@@ -140,15 +140,64 @@ for (int yy = y_start; yy < y_end; yy += BLOCK_Y)
 
 ### 4 MPI并行优化
 
-OpenMP仅限单节点内的线程优化。为了实现不同节点内的多进程并行优化，需要使用MPI工具。我们可以在不同方向上对计算任务进行划分：
+OpenMP仅限单节点内的线程优化。为了实现不同节点内的多进程并行优化，需要使用MPI工具。我们可以在不同方向上对计算任务进行划分。
 
-Z轴：
-```
+假设我们在n(x,y,z)轴上对stencil进行划分，那么每一个节点上计算的模板尺寸将发生变化，即`grid_info->local_size_n = grid_info->global_size_n / grid_info->p_num`。
+
+如图所示，每一个local_array都可以分为`core_array`部分（这部分会发生更改）和`ghost_array`部分（这部分需要依赖进程通信来获取数据用于读取，但不作更新）；同时，自身`core_array`的外层部分也会作为其他local_array的`ghost_array`部分，需要进行发送）。
+
+在处理模板数组的划分以适应多进程计算时，我发现一个问题：如果使用传统的`MPI_Sendrecv`对数组进行直接划分，则要求数组的划分方向必须是内存连续的，这大大限制了程序的可扩展性；即使内存方向是连续的，程序的可读性也由于大量地址的运算而降低。对此，我们可以使用`MPI_Type_create_subarray`这一API，它在C语言中提供了一种类似于“数组切片”的功能，可以很方便地提取地址不连续的子数组，提取完子数组之后使用`MPI_Type_commit`进行提交，即可将其用于通信。
+
+具体而言，在每一个local_array中被划分的方向上，总维度数为`local_size + 2 * halo_size`。第0维作为receive buffer接收上一个local_array的值；第`halo_size`维作为send buffer发送给上一个local_array；第`local_size`维作为send buffer发送给下一个local_array；第`local_size + halo_size`维作为receive buffer接收下一个local_array的值。
+
+以z轴的逻辑为例，切片方法如下。其中的`recv_from_up`、`send_to_up`、`send_to_down`、`recv_from_down`均为用于接受/发送数据的buffer：
+
+```cpp
+void extract_subarrays(dist_grid_info_t *grid_info, MPI_Datatype *recv_from_up, MPI_Datatype *send_to_up, MPI_Datatype *send_to_down, MPI_Datatype *recv_from_down)
+{
+    const int lz = grid_info->local_size_z;
+    const int hz = grid_info->halo_size_z;
+    const int ly = grid_info->local_size_y;
+    const int hy = grid_info->halo_size_y;
+    const int lx = grid_info->local_size_x;
+    const int hx = grid_info->halo_size_x;
+    const int array_of_sizes = {lz + 2 * hz, ly + 2 * hy, lx + 2 * hx};
+    const int array_of_subsizes = {hz, ly + 2 * hy, lx + 2 * hx};
+    int array_of_starts[3];
+
+    // get the recv_from_up
+    array_of_starts[0] = 0;
+    array_of_starts[1] = 0;
+    array_of_starts[2] = 0;
+    MPI_Type_create_subarray(3, array_of_sizes, array_of_subsizes, array_of_starts, MPI_ORDER_C, MPI_DOUBLE, recv_from_up);
+
+    array_of_starts[0] = hz;
+    array_of_starts[1] = 0;
+    array_of_starts[2] = 0;
+    MPI_Type_create_subarray(3, array_of_sizes, array_of_subsizes, array_of_starts, MPI_ORDER_C, MPI_DOUBLE, send_to_up);
+
+    array_of_starts[0] = lz;
+    array_of_starts[1] = 0;
+    array_of_starts[2] = 0;
+    MPI_Type_create_subarray(3, array_of_sizes, array_of_subsizes, array_of_starts, MPI_ORDER_C, MPI_DOUBLE, send_to_down);
+
+    array_of_starts[0] = hz + lz;
+    array_of_starts[1] = 0;
+    array_of_starts[2] = 0;
+    MPI_Type_create_subarray(3, array_of_sizes, array_of_subsizes, array_of_starts, MPI_ORDER_C, MPI_DOUBLE, recv_from_down);
+}
 ```
 
-Y轴：
+之后只要在主运算过程中添加`MPI_Sendrecv`函数即可实现进程间的通信：
+```cpp
+MPI_Sendrecv(a0, 1, send_to_down, MPI_DOUBLE, rank < size - 1 ? rank_num + 1 : MPI_PROC_NULL, 0, 
+             a0, 1, recv_from_up, MPI_DOUBLE, rank > 0 ? rank_num - 1 : MPI_PROC_NULL, 0, MPI_COMM_WORLD, &status);
+MPI_Sendrecv(a0, 1, send_to_up, MPI_DOUBLE, rank > 0 ? rank - 1 : MPI_PROC_NULL, 1,
+             a0, 1, recv_from_down, MPI_DOUBLE, rank < size - 1 ? rank + 1 : MPI_PROC_NULL, 1, MPI_COMM_WORLD, &status);
 ```
-```
+
+对y轴和x轴的划分同理，这里就不一一贴出代码实现了。
+
 
 ## 参考文献
 
