@@ -8,6 +8,10 @@
 
 ## 实验过程
 
+### 0 集群基本概况介绍
+
+为了充分利用集群中的资源，我们需要查看集群的配置。集群CPU为双路Xeon Gold 6342，每路 CPU 共有 24 物理核心，每个物理核心支持2超线程；每个节点共有96个核心，整个集群共有384个核心。
+
 ### 1 baseline分析及其编译优化
 
 > 注：为节约时间起见，在比较不同方法时暂时将`benchmark.sh`中的Timestep设置为16。
@@ -114,7 +118,37 @@ for (int yy = y_start; yy < y_end; yy += BLOCK_Y)
 
 不过颇感意外的是，这一优化并没有明显提升效率。在`OMP_NUM_THREAD=1`的情况下，串行执行效率并没有明显提升（`9.363892` vs `9.351314`）。推测可能是编译优化起到了类似的效果。
 
-### 3 并行优化
+### 3 OpenMP并行优化
+
+OpenMP可以用于单个计算节点内的线程并行。我们考虑对外围的块循环进行多线程并行，使用如下语句：
+
+```cpp
+#pragma omp parallel
+#pragma omp for schedule(guided) collapse(2)   
+for (int yy = y_start; yy < y_end; yy += BLOCK_Y)
+{
+    for (int xx = x_start; xx < x_end; xx += BLOCK_X)
+    {
+        int FIXED_BLOCK_Y = min(BLOCK_Y, y_end - yy); // consider the edge situation
+        int FIXED_BLOCK_X = min(BLOCK_X, x_end - xx);
+        ...
+    }
+}
+```
+
+考虑到分块之后，循环次数减少，因此如何权衡分块大小，以充分利用计算节点的核数是一个关键的问题。对此选取不同的分块个数进行实验：
+
+### 4 MPI并行优化
+
+OpenMP仅限单节点内的线程优化。为了实现不同节点内的多进程并行优化，需要使用MPI工具。我们可以在不同方向上对计算任务进行划分：
+
+Z轴：
+```
+```
+
+Y轴：
+```
+```
 
 ## 参考文献
 
