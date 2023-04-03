@@ -1,0 +1,119 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/time.h>
+
+// a = b * c
+ __global__ void mmult(float *a, float *b, float *c, int N)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y;
+    float sum = 0.0;
+    
+    for (int k = 0; k < N; k++)
+        sum += b[i+N*k] * c[k+N*j];
+
+    a[i+N*j] = sum;
+}
+
+// init 
+void minit(float *a, float *b, float *c, int N)
+{
+    int i, j;
+    
+    for (j = 0; j < N; j++)
+    {
+	for (i = 0; i < N; i++)
+	{
+	    a[i+N*j] = 0.0f;
+	    b[i+N*j] = 1.0f;
+	    c[i+N*j] = 1.0f;
+	}
+    }
+}
+
+// print
+void mprint(float *a, int N, int M)
+{
+    int i, j;
+    
+    for (j = 0; j < M; j++)
+    {
+        for (i = 0; i < M; i++)
+        {
+            printf("%.2f ", a[i+N*j]);
+        }
+        printf("...\n");
+    }
+    printf("...\n");
+}
+
+
+int main(int argc, char* argv[])
+{
+    int N = 1024;
+    
+    struct timeval t1, t2;
+    long msec1, msec2;
+    float flop, mflop, gflop;
+    
+    float *a = (float *)malloc(N*N*sizeof(float));
+    float *b = (float *)malloc(N*N*sizeof(float));
+    float *c = (float *)malloc(N*N*sizeof(float));
+
+    minit(a, b, c, N);
+    
+    // allocate device memory
+    float *devPtrA, *devPtrB, *devPtrC;
+    cudaMalloc((void**)&devPtrA, N*N*sizeof(float)); 
+    cudaMalloc((void**)&devPtrB, N*N*sizeof(float)); 
+    cudaMalloc((void**)&devPtrC, N*N*sizeof(float)); 
+
+    // copu input arrays to the device meory    
+    cudaMemcpy(devPtrB, b, N*N*sizeof(float),  cudaMemcpyHostToDevice); 
+    cudaMemcpy(devPtrC, c, N*N*sizeof(float),  cudaMemcpyHostToDevice); 
+
+    gettimeofday(&t1, NULL);
+    msec1 = t1.tv_sec * 1000000 + t1.tv_usec;
+
+    // define grid and thread block sizes
+    dim3 dimGrid(32, 1024);
+    dim3 dimBlock(32);
+    
+    // launch GPU kernel
+    mmult<<<dimGrid, dimBlock>>>(devPtrA, devPtrB, devPtrC, N);
+    
+    // check for errors
+    cudaError_t err = cudaGetLastError();
+    if (cudaSuccess != err) 
+    {
+        fprintf(stderr, "CUDA error: %s.\n", cudaGetErrorString( err) );
+        exit(EXIT_FAILURE);
+    }                         
+    
+    // wait until GPU kernel is done
+    cudaThreadSynchronize();
+
+    gettimeofday(&t2, NULL);
+    msec2 = t2.tv_sec * 1000000 + t2.tv_usec;
+
+    // copy results to host
+    cudaMemcpy(a, devPtrA, N*N*sizeof(float),  cudaMemcpyDeviceToHost); 
+
+    mprint(a, N, 5);
+    
+    // free device memory
+    cudaFree(devPtrA); 
+    cudaFree(devPtrB); 
+    cudaFree(devPtrC); 
+    
+    free(a);
+    free(b);
+    free(c);
+
+    msec2 -= msec1;
+    flop = N*N*N*2.0f;
+    mflop = flop / msec2;
+    gflop = mflop / 1000.0f;
+    printf("msec = %10ld   GFLOPS = %.3f\n", msec2, gflop);
+}
