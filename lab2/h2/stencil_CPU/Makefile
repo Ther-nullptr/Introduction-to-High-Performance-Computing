@@ -1,6 +1,6 @@
 
 CC = mpicc 
-OPT = -O3 -fomit-frame-pointer -ffast-math -march=native 
+OPT = # -O3 -fomit-frame-pointer -ffast-math -march=native 
 CFLAGS = -w -std=c99 $(OPT) -fopenmp
 LDFLAGS = -Wall -fopenmp -lm $(OPT)
 LDLIBS = $(LDFLAGS)
