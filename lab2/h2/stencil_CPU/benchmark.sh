@@ -1,5 +1,6 @@
 #!/usr/bin/bash
-#SBATCH --nodes=1
+#SBATCH -N 4
+#SBATCH --nodes=4
 #BATCH --ntasks-per-node=1
 
 if [ "$#" -ne 2 ]; then
