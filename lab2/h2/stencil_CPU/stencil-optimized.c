@@ -65,7 +65,7 @@ ptr_t stencil_27(ptr_t grid, ptr_t aux, const dist_grid_info_t *grid_info, int n
                      &a0[INDEX(0, 0, grid_info->halo_size_z + grid_info->local_size_z, ldx, ldy)], ldx * ldy, MPI_DOUBLE, rank_id < rank_num - 1 ? rank_id + 1 : MPI_PROC_NULL, 1, MPI_COMM_WORLD, &status);
 
 #pragma omp parallel
-#pragma omp for schedule(guided) collapse(2)   
+#pragma omp for schedule(dynamic) collapse(2)   
         for (int yy = y_start; yy < y_end; yy += BLOCK_Y)
         {
             for (int xx = x_start; xx < x_end; xx += BLOCK_X)
