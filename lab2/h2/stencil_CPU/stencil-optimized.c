@@ -59,14 +59,13 @@ ptr_t stencil_27(ptr_t grid, ptr_t aux, const dist_grid_info_t *grid_info, int n
         cptr_t restrict a0 = buffer[t % 2];
         ptr_t restrict a1 = buffer[(t + 1) % 2];
 #pragma omp parallel
-#pragma omp for schedule(guided) collapse(2)   
+#pragma omp for schedule(dynamic) collapse(2)   
         for (int yy = y_start; yy < y_end; yy += BLOCK_Y)
         {
             for (int xx = x_start; xx < x_end; xx += BLOCK_X)
             {
                 int FIXED_BLOCK_Y = min(BLOCK_Y, y_end - yy); // consider the edge situation
                 int FIXED_BLOCK_X = min(BLOCK_X, x_end - xx);
-
                 // get the small block value to write
                 ptr_t a1_block = a1 + z_start * ldx * ldy + yy * ldx + xx;
 
