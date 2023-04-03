@@ -21,17 +21,17 @@ MPI_Status status;
 
 void create_dist_grid(dist_grid_info_t *grid_info, int stencil_type)
 {
-    grid_info->local_size_x = grid_info->global_size_x / grid_info->p_num;
+    grid_info->local_size_x = grid_info->global_size_x;
     grid_info->local_size_y = grid_info->global_size_y;
     // divide the thread to p_num parts
-    grid_info->local_size_z = grid_info->global_size_z;
+    grid_info->local_size_z = grid_info->global_size_z / grid_info->p_num;
     if (grid_info->p_id == 0)
     {
         printf("use %d processes to divide the z\n", grid_info->p_num);
     }
     grid_info->offset_x = 0;
     grid_info->offset_y = 0;
-    grid_info->offset_z = 0;
+    grid_info->offset_z = grid_info->local_size_z * grid_info->p_id;
     grid_info->halo_size_x = 1; //! 一个简单的padding
     grid_info->halo_size_y = 1;
     grid_info->halo_size_z = 1;
@@ -54,60 +54,38 @@ ptr_t stencil_27(ptr_t grid, ptr_t aux, const dist_grid_info_t *grid_info, int n
     int rank_num = grid_info->p_num;
     int rank_id = grid_info->p_id;
 
+    printf("p_id:%d, x_start:%d, y_start:%d, z_start:%d, x_end:%d, y_end:%d, z_end:%d\n", rank_id, x_start, y_start, z_start, x_end, y_end, z_end);
+
     for (int t = 0; t < nt; ++t)
     {
         ptr_t restrict a0 = buffer[t % 2];
         ptr_t restrict a1 = buffer[(t + 1) % 2];
         
-        MPI_Sendrecv(&a0[INDEX(grid_info->local_size_x, 0, 0, ldx, ldy)], ldx * ldy, MPI_DOUBLE, rank_id < rank_num - 1 ? rank_id + 1 : MPI_PROC_NULL, 0, \
+        MPI_Sendrecv(&a0[INDEX(0, 0, grid_info->local_size_z, ldx, ldy)], ldx * ldy, MPI_DOUBLE, rank_id < rank_num - 1 ? rank_id + 1 : MPI_PROC_NULL, 0, \
                      &a0[INDEX(0, 0, 0, ldx, ldy)], ldx * ldy, MPI_DOUBLE, rank_id > 0 ? rank_id - 1 : MPI_PROC_NULL, 0, MPI_COMM_WORLD, &status);
-        MPI_Sendrecv(&a0[INDEX(grid_info->halo_size_x, 0, 0, ldx, ldy)], ldx * ldy, MPI_DOUBLE, rank_id > 0 ? rank_id - 1 : MPI_PROC_NULL, 1, \
-                     &a0[INDEX(grid_info->halo_size_x + grid_info->local_size_x, 0, 0, ldx, ldy)], ldx * ldy, MPI_DOUBLE, rank_id < rank_num - 1 ? rank_id + 1 : MPI_PROC_NULL, 1, MPI_COMM_WORLD, &status);
+        MPI_Sendrecv(&a0[INDEX(0, 0, grid_info->halo_size_z, ldx, ldy)], ldx * ldy, MPI_DOUBLE, rank_id > 0 ? rank_id - 1 : MPI_PROC_NULL, 1, \
+                     &a0[INDEX(0, 0, grid_info->halo_size_z + grid_info->local_size_z, ldx, ldy)], ldx * ldy, MPI_DOUBLE, rank_id < rank_num - 1 ? rank_id + 1 : MPI_PROC_NULL, 1, MPI_COMM_WORLD, &status);
 
-        for (int yy = y_start; yy < y_end; yy += BLOCK_Y)
+        for (int z = z_start; z < z_end; ++z)
         {
-            for (int xx = x_start; xx < x_end; xx += BLOCK_X)
+            for (int y = y_start; y < y_end; ++y)
             {
-                int FIXED_BLOCK_Y = min(BLOCK_Y, y_end - yy); // consider the edge situation
-                int FIXED_BLOCK_X = min(BLOCK_X, x_end - xx);
-
-                // get the small block value to write
-                ptr_t a1_block = a1 + z_start * ldx * ldy + yy * ldx + xx;
-
-                // get the small block value to read
-                ptr_t a0_block_Z = a0 + z_start * ldx * ldy + yy * ldx + xx;
-                ptr_t a0_block_P = a0 + (z_start + 1) * ldx * ldy + yy * ldx + xx;
-                ptr_t a0_block_N = a0 + (z_start - 1) * ldx * ldy + yy * ldx + xx;
-
-                // loop inside block
-                for (int z = z_start; z < z_end; ++z)
+                for (int x = x_start; x < x_end; ++x)
                 {
-                    for (int y = 0; y < FIXED_BLOCK_Y; ++y)
-                    {
-                        for (int x = 0; x < FIXED_BLOCK_X; ++x)
-                        {
-                            a1_block[INDEX_NEW(x, y, ldx)] = \
-                              ALPHA_ZZZ * a0_block_Z[INDEX_NEW(x, y, ldx)] \
-                            + ALPHA_NZZ * a0_block_Z[INDEX_NEW(x - 1, y, ldx)] + ALPHA_PZZ * a0_block_Z[INDEX_NEW(x + 1, y, ldx)] \
-                            + ALPHA_ZNZ * a0_block_Z[INDEX_NEW(x, y - 1, ldx)] + ALPHA_ZPZ * a0_block_Z[INDEX_NEW(x, y + 1, ldx)] \
-                            + ALPHA_ZZN * a0_block_N[INDEX_NEW(x, y, ldx)] + ALPHA_ZZP * a0_block_P[INDEX_NEW(x, y, ldx)] \
-                            + ALPHA_NNZ * a0_block_Z[INDEX_NEW(x - 1, y - 1, ldx)] + ALPHA_PNZ * a0_block_Z[INDEX_NEW(x + 1, y - 1, ldx)] \
-                            + ALPHA_NPZ * a0_block_Z[INDEX_NEW(x - 1, y + 1, ldx)] + ALPHA_PPZ * a0_block_Z[INDEX_NEW(x + 1, y + 1, ldx)] \
-                            + ALPHA_NZN * a0_block_N[INDEX_NEW(x - 1, y, ldx)] + ALPHA_PZN * a0_block_N[INDEX_NEW(x + 1, y, ldx)] \
-                            + ALPHA_NZP * a0_block_P[INDEX_NEW(x - 1, y, ldx)] + ALPHA_PZP * a0_block_P[INDEX_NEW(x + 1, y, ldx)] \
-                            + ALPHA_ZNN * a0_block_N[INDEX_NEW(x, y - 1, ldx)] + ALPHA_ZPN * a0_block_N[INDEX_NEW(x, y + 1, ldx)] \
-                            + ALPHA_ZNP * a0_block_P[INDEX_NEW(x, y - 1, ldx)] + ALPHA_ZPP * a0_block_P[INDEX_NEW(x, y + 1, ldx)] \
-                            + ALPHA_NNN * a0_block_N[INDEX_NEW(x - 1, y - 1, ldx)] + ALPHA_PNN * a0_block_N[INDEX_NEW(x + 1, y - 1, ldx)] \
-                            + ALPHA_NPN * a0_block_N[INDEX_NEW(x - 1, y + 1, ldx)] + ALPHA_PPN * a0_block_N[INDEX_NEW(x + 1, y + 1, ldx)] \
-                            + ALPHA_NNP * a0_block_P[INDEX_NEW(x - 1, y - 1, ldx)] + ALPHA_PNP * a0_block_P[INDEX_NEW(x + 1, y - 1, ldx)] \
-                            + ALPHA_NPP * a0_block_P[INDEX_NEW(x - 1, y + 1, ldx)] + ALPHA_PPP * a0_block_P[INDEX_NEW(x + 1, y + 1, ldx)];
-                        }
-                    }
-                    // update the pointer of block
-                    a1_block = a1_block + ldx * ldy;
-                    a0_block_N = a0_block_Z;
-                    a0_block_Z = a0_block_P;
-                    a0_block_P = a0_block_P + ldx * ldy;
+                    a1[INDEX(x, y, z, ldx, ldy)] = ALPHA_ZZZ * a0[INDEX(x, y, z, ldx, ldy)] \
+                    + ALPHA_NZZ * a0[INDEX(x - 1, y, z, ldx, ldy)] + ALPHA_PZZ * a0[INDEX(x + 1, y, z, ldx, ldy)] \
+                    + ALPHA_ZNZ * a0[INDEX(x, y - 1, z, ldx, ldy)] + ALPHA_ZPZ * a0[INDEX(x, y + 1, z, ldx, ldy)] \
+                    + ALPHA_ZZN * a0[INDEX(x, y, z - 1, ldx, ldy)] + ALPHA_ZZP * a0[INDEX(x, y, z + 1, ldx, ldy)] \
+                    + ALPHA_NNZ * a0[INDEX(x - 1, y - 1, z, ldx, ldy)] + ALPHA_PNZ * a0[INDEX(x + 1, y - 1, z, ldx, ldy)] \
+                    + ALPHA_NPZ * a0[INDEX(x - 1, y + 1, z, ldx, ldy)] + ALPHA_PPZ * a0[INDEX(x + 1, y + 1, z, ldx, ldy)] \
+                    + ALPHA_NZN * a0[INDEX(x - 1, y, z - 1, ldx, ldy)] + ALPHA_PZN * a0[INDEX(x + 1, y, z - 1, ldx, ldy)] \
+                    + ALPHA_NZP * a0[INDEX(x - 1, y, z + 1, ldx, ldy)] + ALPHA_PZP * a0[INDEX(x + 1, y, z + 1, ldx, ldy)] \
+                    + ALPHA_ZNN * a0[INDEX(x, y - 1, z - 1, ldx, ldy)] + ALPHA_ZPN * a0[INDEX(x, y + 1, z - 1, ldx, ldy)] \
+                    + ALPHA_ZNP * a0[INDEX(x, y - 1, z + 1, ldx, ldy)] + ALPHA_ZPP * a0[INDEX(x, y + 1, z + 1, ldx, ldy)] \
+                    + ALPHA_NNN * a0[INDEX(x - 1, y - 1, z - 1, ldx, ldy)] + ALPHA_PNN * a0[INDEX(x + 1, y - 1, z - 1, ldx, ldy)] \
+                    + ALPHA_NPN * a0[INDEX(x - 1, y + 1, z - 1, ldx, ldy)] + ALPHA_PPN * a0[INDEX(x + 1, y + 1, z - 1, ldx, ldy)] \
+                    + ALPHA_NNP * a0[INDEX(x - 1, y - 1, z + 1, ldx, ldy)] + ALPHA_PNP * a0[INDEX(x + 1, y - 1, z + 1, ldx, ldy)] \
+                    + ALPHA_NPP * a0[INDEX(x - 1, y + 1, z + 1, ldx, ldy)] + ALPHA_PPP * a0[INDEX(x + 1, y + 1, z + 1, ldx, ldy)];
                 }
             }
         }
