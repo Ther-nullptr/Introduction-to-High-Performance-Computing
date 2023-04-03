@@ -36,20 +36,11 @@ for (int t = 0; t < nt; ++t)
     }
 }
 ```
+我们对其采取编译优化，添加如下编译选项：`-O3 -fomit-frame-pointer -ffast-math -march=native `
 
-`#pragma`将最外层的语句并行化，并采用动态调度算法将循环迭代分配给不同的线程执行。测试结果如下：
+性能提升如下：
 
-
-
-开启`-O3`编译优化之后的测试结果如下：
-
-| processes | size        | performance (Gflop/s)|
-| --------- | ----------- | -------------------- |
-| 1         | 256x256x256 | 9.363892             |
-| 2         | 256x256x256 | 18.574429            |
-| 4         | 256x256x256 | 36.967220            |
-| 8         | 256x256x256 | 69.608565            |
-| 16        | 256x256x256 | 106.569054           |
+![image.png](https://s2.loli.net/2023/04/03/pn1rQRV7GelS9zF.png)
 
 
 ### 2 串行优化
@@ -110,15 +101,13 @@ for (int yy = y_start; yy < y_end; yy += BLOCK_Y)
 }
 ```
 
-不过颇感意外的是，这一优化并没有明显提升效率。在`OMP_NUM_THREAD=1`的情况下，串行执行效率并没有明显提升（`9.363892` vs `9.351314`）。推测可能是编译优化起到了类似的效果。
-
 ### 3 OpenMP并行优化
 
-OpenMP可以用于单个计算节点内的线程并行。我们考虑对外围的块循环进行多线程并行，使用如下语句：
+OpenMP可以用于单个计算节点内的线程并行。在上一节分块策略的基础上，我们考虑对外围的块循环进行多线程并行，使用如下语句：
 
 ```cpp
 #pragma omp parallel
-#pragma omp for schedule(guided) collapse(2)   
+#pragma omp for schedule(dynamic) collapse(2)
 for (int yy = y_start; yy < y_end; yy += BLOCK_Y)
 {
     for (int xx = x_start; xx < x_end; xx += BLOCK_X)
@@ -130,7 +119,13 @@ for (int yy = y_start; yy < y_end; yy += BLOCK_Y)
 }
 ```
 
-考虑到分块之后，循环次数减少，因此如何权衡分块大小，以充分利用计算节点的核数是一个关键的问题。对此选取不同的分块个数进行实验：
+这里值得注意的是，考虑到`BLOCK_X`和`BLOCK_Y`的值通常较大，循环所进行的次数较少，而线程数最多48，所以使用`collapse(2)`语句对两层循环进行展开，以充分利用线程资源。
+
+颇感意外的是，这一优化并没有明显提升效率：
+
+![image.png](https://s2.loli.net/2023/04/03/8WGA4zjBQe1Cpby.png)
+
+推测可能是编译优化起到了类似的内存优化效果。
 
 ### 4 MPI并行优化
 
@@ -216,19 +211,16 @@ MPI_Sendrecv(&a0[INDEX(0, 0, grid_info->halo_size_z, ldx, ldy)], ldx * ldy, MPI_
 
 > 注意这里用`MPI_Sendrecv`将send逻辑和recv逻辑进行合并，同时使用`MPI_PROC_NULL`处理通信的边界条件。
 
+最终结果如图所示：
 
-之后只要在主运算过程中添加`MPI_Sendrecv`函数即可实现进程间的通信：
-```cpp
-MPI_Sendrecv(a0, 1, send_to_down, MPI_DOUBLE, rank < size - 1 ? rank_num + 1 : MPI_PROC_NULL, 0, 
-             a0, 1, recv_from_up, MPI_DOUBLE, rank > 0 ? rank_num - 1 : MPI_PROC_NULL, 0, MPI_COMM_WORLD, &status);
-MPI_Sendrecv(a0, 1, send_to_up, MPI_DOUBLE, rank > 0 ? rank - 1 : MPI_PROC_NULL, 1,
-             a0, 1, recv_from_down, MPI_DOUBLE, rank < size - 1 ? rank + 1 : MPI_PROC_NULL, 1, MPI_COMM_WORLD, &status);
-```
+![image.png](https://s2.loli.net/2023/04/03/mJaTrP7VWE8l9QS.png)
 
-
-
+可以看到，随着线程数的增加，使用MPI进行并行计算的速度增长接近线性。
 
 ## 参考文献
 
-[^1] http://people.csail.mit.edu/skamil/projects/stencilprobe/
-[^2] https://blog.csdn.net/weixin_43614211/article/details/122108753
+[^1] [StencilProbe: A Microbenchmark for Stencil Applications](http://people.csail.mit.edu/skamil/projects/stencilprobe/)
+
+[^2] [adept-kernel-openmp](https://github.com/EPCCed/adept-kernel-openmp/blob/master/stencil.c)
+
+[^3] [Message Passing Interface (MPI)](https://hpc-tutorials.llnl.gov/mpi/)

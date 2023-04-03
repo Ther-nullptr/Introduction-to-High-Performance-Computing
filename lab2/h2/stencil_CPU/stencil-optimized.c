@@ -86,6 +86,7 @@ ptr_t stencil_27(ptr_t grid, ptr_t aux, const dist_grid_info_t *grid_info, int n
                 {
                     for (int y = 0; y < FIXED_BLOCK_Y; ++y)
                     {
+#pragma unroll
                         for (int x = 0; x < FIXED_BLOCK_X; ++x)
                         {
                             a1_block[INDEX_NEW(x, y, ldx)] = \
