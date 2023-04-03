@@ -263,10 +263,8 @@ static inline void do_block_divide_unrolling_b(int lda, int M, int N, int K, flo
 可以看出loop unrolling对于计算速度的提升有着很明显的效果。
 
 > 这里值得关注的是：相比于对A矩阵进行循环展开，对B矩阵进行循环展开可以获得更佳的效果。这是因为在每一个`for (int k = 0; k < K; ++k)`循环中，`B`的内存是连续的，而`A`的内存是不连续的，对A进行循环展开时，需要重复加载`A`中的数据，访问地址的不连续拖慢了速度。
-<<<<<<< HEAD
-=======
-> 
->>>>>>> alignment-reset
+
+![e310dcf71607085897ec49ce9132675.jpg](https://s2.loli.net/2023/03/20/ast5xFw1pimNLoT.jpg)
 
 ### 三、寄存器优化（Register Blocking）
 
@@ -834,6 +832,8 @@ for (int k = 0; k < K; k++)
 ```
 
 在进行每个新的循环，加载A中的元素时，我们会发现访问的内存并非连续，这可能导致潜在的开销。为了减少这一开销，我们对矩阵A中的元素进行重排，如图所示：
+
+![bc5d51f76baadc21bee9e4a579d09f8.jpg](https://s2.loli.net/2023/03/20/knOEYyAewKW8fcM.jpg)
 
 具体来说，我们将A、B、C这三个矩阵加载到一片连续的内存中之后，我们对A中的元素进行重新分配，使得其在循环过程中刚好可以做到对内存的连续访问：
 
