@@ -138,6 +138,26 @@ for (int yy = y_start; yy < y_end; yy += BLOCK_Y)
 
 考虑到分块之后，循环次数减少，因此如何权衡分块大小，以充分利用计算节点的核数是一个关键的问题。对此选取不同的分块个数进行实验：
 
+### 4 MPI并行化
+
+
+
+## 特别说明
+
+对以下代码进行修改，以确保在使用多线程时，只有主线程打印相关信息：
+
+```diff
++ if (p_id == 0)
++ {
+    printf("errors:\n    1-norm = %.16lf\n    2-norm = %.16lf\n  inf-norm = %.16lf\n",
+        result.norm_1, result.norm_2, result.norm_inf);
+    if (result.norm_inf > 1e-9)
+    {
+        printf("Significant numeric error.\n");
+    }
++ }
+```
+
 
 
 ## 参考文献

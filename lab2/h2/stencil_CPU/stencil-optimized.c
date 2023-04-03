@@ -6,7 +6,7 @@ const char *version_name = "Optimized version";
 #include "common.h"
 
 #ifndef BLOCK_X
-#define BLOCK_X 256
+#define BLOCK_X 384
 #endif
 
 #ifndef BLOCK_Y
@@ -70,9 +70,10 @@ ptr_t stencil_27(ptr_t grid, ptr_t aux, const dist_grid_info_t *grid_info, int n
                 ptr_t a1_block = a1 + z_start * ldx * ldy + yy * ldx + xx;
 
                 // get the small block value to read
-                ptr_t a0_block_Z = a0 + z_start * ldx * ldy + yy * ldx + xx;
-                ptr_t a0_block_P = a0 + (z_start + 1) * ldx * ldy + yy * ldx + xx;
-                ptr_t a0_block_N = a0 + (z_start - 1) * ldx * ldy + yy * ldx + xx;
+                ptr_t a0_block_divided[3]; 
+                a0_block_divided[0] = a0 + z_start * ldx * ldy + yy * ldx + xx;
+                a0_block_divided[1] = a0 + (z_start + 1) * ldx * ldy + yy * ldx + xx;
+                a0_block_divided[2] = a0 + (z_start - 1) * ldx * ldy + yy * ldx + xx;
 
                 // loop inside block
                 for (int z = z_start; z < z_end; ++z)
@@ -82,27 +83,27 @@ ptr_t stencil_27(ptr_t grid, ptr_t aux, const dist_grid_info_t *grid_info, int n
                         for (int x = 0; x < FIXED_BLOCK_X; ++x)
                         {
                             a1_block[INDEX_NEW(x, y, ldx)] = \
-                              ALPHA_ZZZ * a0_block_Z[INDEX_NEW(x, y, ldx)] \
-                            + ALPHA_NZZ * a0_block_Z[INDEX_NEW(x - 1, y, ldx)] + ALPHA_PZZ * a0_block_Z[INDEX_NEW(x + 1, y, ldx)] \
-                            + ALPHA_ZNZ * a0_block_Z[INDEX_NEW(x, y - 1, ldx)] + ALPHA_ZPZ * a0_block_Z[INDEX_NEW(x, y + 1, ldx)] \
-                            + ALPHA_ZZN * a0_block_N[INDEX_NEW(x, y, ldx)] + ALPHA_ZZP * a0_block_P[INDEX_NEW(x, y, ldx)] \
-                            + ALPHA_NNZ * a0_block_Z[INDEX_NEW(x - 1, y - 1, ldx)] + ALPHA_PNZ * a0_block_Z[INDEX_NEW(x + 1, y - 1, ldx)] \
-                            + ALPHA_NPZ * a0_block_Z[INDEX_NEW(x - 1, y + 1, ldx)] + ALPHA_PPZ * a0_block_Z[INDEX_NEW(x + 1, y + 1, ldx)] \
-                            + ALPHA_NZN * a0_block_N[INDEX_NEW(x - 1, y, ldx)] + ALPHA_PZN * a0_block_N[INDEX_NEW(x + 1, y, ldx)] \
-                            + ALPHA_NZP * a0_block_P[INDEX_NEW(x - 1, y, ldx)] + ALPHA_PZP * a0_block_P[INDEX_NEW(x + 1, y, ldx)] \
-                            + ALPHA_ZNN * a0_block_N[INDEX_NEW(x, y - 1, ldx)] + ALPHA_ZPN * a0_block_N[INDEX_NEW(x, y + 1, ldx)] \
-                            + ALPHA_ZNP * a0_block_P[INDEX_NEW(x, y - 1, ldx)] + ALPHA_ZPP * a0_block_P[INDEX_NEW(x, y + 1, ldx)] \
-                            + ALPHA_NNN * a0_block_N[INDEX_NEW(x - 1, y - 1, ldx)] + ALPHA_PNN * a0_block_N[INDEX_NEW(x + 1, y - 1, ldx)] \
-                            + ALPHA_NPN * a0_block_N[INDEX_NEW(x - 1, y + 1, ldx)] + ALPHA_PPN * a0_block_N[INDEX_NEW(x + 1, y + 1, ldx)] \
-                            + ALPHA_NNP * a0_block_P[INDEX_NEW(x - 1, y - 1, ldx)] + ALPHA_PNP * a0_block_P[INDEX_NEW(x + 1, y - 1, ldx)] \
-                            + ALPHA_NPP * a0_block_P[INDEX_NEW(x - 1, y + 1, ldx)] + ALPHA_PPP * a0_block_P[INDEX_NEW(x + 1, y + 1, ldx)];
+                              ALPHA_ZZZ * a0_block_divided[0][INDEX_NEW(x, y, ldx)] \
+                            + ALPHA_NZZ * a0_block_divided[0][INDEX_NEW(x - 1, y, ldx)] + ALPHA_PZZ * a0_block_divided[0][INDEX_NEW(x + 1, y, ldx)] \
+                            + ALPHA_ZNZ * a0_block_divided[0][INDEX_NEW(x, y - 1, ldx)] + ALPHA_ZPZ * a0_block_divided[0][INDEX_NEW(x, y + 1, ldx)] \
+                            + ALPHA_ZZN * a0_block_divided[2][INDEX_NEW(x, y, ldx)] + ALPHA_ZZP * a0_block_divided[1][INDEX_NEW(x, y, ldx)] \
+                            + ALPHA_NNZ * a0_block_divided[0][INDEX_NEW(x - 1, y - 1, ldx)] + ALPHA_PNZ * a0_block_divided[0][INDEX_NEW(x + 1, y - 1, ldx)] \
+                            + ALPHA_NPZ * a0_block_divided[0][INDEX_NEW(x - 1, y + 1, ldx)] + ALPHA_PPZ * a0_block_divided[0][INDEX_NEW(x + 1, y + 1, ldx)] \
+                            + ALPHA_NZN * a0_block_divided[2][INDEX_NEW(x - 1, y, ldx)] + ALPHA_PZN * a0_block_divided[2][INDEX_NEW(x + 1, y, ldx)] \
+                            + ALPHA_NZP * a0_block_divided[1][INDEX_NEW(x - 1, y, ldx)] + ALPHA_PZP * a0_block_divided[1][INDEX_NEW(x + 1, y, ldx)] \
+                            + ALPHA_ZNN * a0_block_divided[2][INDEX_NEW(x, y - 1, ldx)] + ALPHA_ZPN * a0_block_divided[2][INDEX_NEW(x, y + 1, ldx)] \
+                            + ALPHA_ZNP * a0_block_divided[1][INDEX_NEW(x, y - 1, ldx)] + ALPHA_ZPP * a0_block_divided[1][INDEX_NEW(x, y + 1, ldx)] \
+                            + ALPHA_NNN * a0_block_divided[2][INDEX_NEW(x - 1, y - 1, ldx)] + ALPHA_PNN * a0_block_divided[2][INDEX_NEW(x + 1, y - 1, ldx)] \
+                            + ALPHA_NPN * a0_block_divided[2][INDEX_NEW(x - 1, y + 1, ldx)] + ALPHA_PPN * a0_block_divided[2][INDEX_NEW(x + 1, y + 1, ldx)] \
+                            + ALPHA_NNP * a0_block_divided[1][INDEX_NEW(x - 1, y - 1, ldx)] + ALPHA_PNP * a0_block_divided[1][INDEX_NEW(x + 1, y - 1, ldx)] \
+                            + ALPHA_NPP * a0_block_divided[1][INDEX_NEW(x - 1, y + 1, ldx)] + ALPHA_PPP * a0_block_divided[1][INDEX_NEW(x + 1, y + 1, ldx)];
                         }
                     }
                     // update the pointer of block
                     a1_block = a1_block + ldx * ldy;
-                    a0_block_N = a0_block_Z;
-                    a0_block_Z = a0_block_P;
-                    a0_block_P = a0_block_P + ldx * ldy;
+                    a0_block_divided[2] = a0_block_divided[0];
+                    a0_block_divided[0] = a0_block_divided[1];
+                    a0_block_divided[1] = a0_block_divided[1] + ldx * ldy;
                 }
             }
         }
