@@ -6,6 +6,16 @@
 2. 掌握主要的体系结构优化手段
 3. 掌握常见的并行计算工具
 
+## 工程说明
+
+本项目实现了矩阵相乘的多种优化的方式，存放于若干个git branch上：
+```bash
+$ git branch -v
+  master  # 主分支，与mpi(本项目的sota)一致 
+  openmp  # openmp优化
+  mpi     # mpi优化
+```
+
 ## 实验过程
 
 ### 0 集群基本概况介绍
@@ -216,6 +226,22 @@ MPI_Sendrecv(&a0[INDEX(0, 0, grid_info->halo_size_z, ldx, ldy)], ldx * ldy, MPI_
 ![image.png](https://s2.loli.net/2023/04/03/mJaTrP7VWE8l9QS.png)
 
 可以看到，随着线程数的增加，使用MPI进行并行计算的速度增长接近线性。
+
+## 特别说明
+
+为防止在不同线程内打印多次调试信息，特对主代码进行以下更改：
+
+```diff
++ if (p_id == 0)
++ {
+    printf("errors:\n    1-norm = %.16lf\n    2-norm = %.16lf\n  inf-norm = %.16lf\n",
+        result.norm_1, result.norm_2, result.norm_inf);
+    if (result.norm_inf > 1e-9)
+    {
+        printf("Significant numeric error.\n");
+    }
++ }
+```
 
 ## 参考文献
 
