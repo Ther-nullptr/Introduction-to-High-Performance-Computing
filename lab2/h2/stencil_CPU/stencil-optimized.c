@@ -6,7 +6,7 @@ const char *version_name = "Optimized version";
 #include "common.h"
 
 #ifndef BLOCK_X
-#define BLOCK_X 384
+#define BLOCK_X 512
 #endif
 
 #ifndef BLOCK_Y
