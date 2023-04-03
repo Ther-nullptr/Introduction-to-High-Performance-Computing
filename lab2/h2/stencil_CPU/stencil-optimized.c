@@ -6,7 +6,7 @@ const char *version_name = "Optimized version";
 #include "common.h"
 
 #ifndef BLOCK_X
-#define BLOCK_X 384
+#define BLOCK_X 256
 #endif
 
 #ifndef BLOCK_Y
@@ -56,7 +56,7 @@ ptr_t stencil_27(ptr_t grid, ptr_t aux, const dist_grid_info_t *grid_info, int n
 
     for (int t = 0; t < nt; ++t)
     {
-        ptr_t restrict a0 = buffer[t % 2];
+        cptr_t restrict a0 = buffer[t % 2];
         ptr_t restrict a1 = buffer[(t + 1) % 2];
         
         MPI_Sendrecv(&a0[INDEX(0, 0, grid_info->local_size_z, ldx, ldy)], ldx * ldy, MPI_DOUBLE, rank_id < rank_num - 1 ? rank_id + 1 : MPI_PROC_NULL, 0, \

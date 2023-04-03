@@ -140,17 +140,37 @@ for (int yy = y_start; yy < y_end; yy += BLOCK_Y)
 
 ### 4 MPI并行优化
 
-OpenMP仅限单节点内的线程优化。为了实现不同节点内的多进程并行优化，需要使用MPI工具。我们可以在不同方向上对计算任务进行划分。
+在实现并行计算时，我们可以对计算任务在空间上进行划分。
 
-假设我们在n(x,y,z)轴上对stencil进行划分，那么每一个节点上计算的模板尺寸将发生变化，即`grid_info->local_size_n = grid_info->global_size_n / grid_info->p_num`。
+假设我们在n(n in x,y,z)轴上对stencil进行划分，那么每一个节点上计算的模板尺寸将发生变化，即设置`grid_info->local_size_n = grid_info->global_size_n / grid_info->p_num`。与此同时，被划分后的不同子数组在空间上也应在不同的方向上错开一定距离，即设置`grid_info->offset_n = grid_info->local_size_n * grid_info->p_id`。
 
-如图所示，每一个local_array都可以分为`core_array`部分（这部分会发生更改）和`ghost_array`部分（这部分需要依赖进程通信来获取数据用于读取，但不作更新）；同时，自身`core_array`的外层部分也会作为其他local_array的`ghost_array`部分，需要进行发送）。
+注意到数组的index按照如下方式定义：
 
-在处理模板数组的划分以适应多进程计算时，我发现一个问题：如果使用传统的`MPI_Sendrecv`对数组进行直接划分，则要求数组的划分方向必须是内存连续的，这大大限制了程序的可扩展性；即使内存方向是连续的，程序的可读性也由于大量地址的运算而降低。对此，我们可以使用`MPI_Type_create_subarray`这一API，它在C语言中提供了一种类似于“数组切片”的功能，可以很方便地提取地址不连续的子数组，提取完子数组之后使用`MPI_Type_commit`进行提交，即可将其用于通信。
+```cpp
+#define INDEX(xx, yy, zz, ldxx, ldyy) ((xx) + (ldxx) * ((yy) + (ldyy) * (zz)))
+```
 
-具体而言，在每一个local_array中被划分的方向上，总维度数为`local_size + 2 * halo_size`。第0维作为receive buffer接收上一个local_array的值；第`halo_size`维作为send buffer发送给上一个local_array；第`local_size`维作为send buffer发送给下一个local_array；第`local_size + halo_size`维作为receive buffer接收下一个local_array的值。
+即按照内存顺序访问矩阵中的值时，z的更新最慢。所以，我们需要在z轴方向上划分数组：
 
-以z轴的逻辑为例，切片方法如下。其中的`recv_from_up`、`send_to_up`、`send_to_down`、`recv_from_down`均为用于接受/发送数据的buffer：
+```cpp
+void create_dist_grid(dist_grid_info_t *grid_info, int stencil_type)
+{
+    grid_info->local_size_x = grid_info->global_size_x;
+    grid_info->local_size_y = grid_info->global_size_y;
+    // divide the thread to p_num parts
+    grid_info->local_size_z = grid_info->global_size_z / grid_info->p_num;
+    if (grid_info->p_id == 0)
+    {
+        printf("use %d processes to divide the z\n", grid_info->p_num);
+    }
+    grid_info->offset_x = 0;
+    grid_info->offset_y = 0;
+    grid_info->offset_z = grid_info->local_size_z * grid_info->p_id;
+    grid_info->halo_size_x = 1; //! 一个简单的padding
+    grid_info->halo_size_y = 1;
+    grid_info->halo_size_z = 1;
+}
+```
 
 ```cpp
 void extract_subarrays(dist_grid_info_t *grid_info, MPI_Datatype *recv_from_up, MPI_Datatype *send_to_up, MPI_Datatype *send_to_down, MPI_Datatype *recv_from_down)
@@ -188,6 +208,21 @@ void extract_subarrays(dist_grid_info_t *grid_info, MPI_Datatype *recv_from_up, 
 }
 ```
 
+数组之间的通信原理如图所示，每一个local_array都可以分为`core_array`部分（这部分会发生更改）和`ghost_array`部分（这部分需要依赖进程通信来获取数据用于读取，但不作更新）；同时，自身`core_array`的外层部分也会作为其他local_array的`ghost_array`部分，需要进行发送）。
+
+具体的解释如下：在划分时，在每一个local_array中被划分的方向上，总维度数为`local_size + 2 * halo_size`。第0维作为receive buffer接收上一个local_array的值；第`halo_size`维作为send buffer发送给上一个local_array；第`local_size`维作为send buffer发送给下一个local_array；第`local_size + halo_size`维作为receive buffer接收下一个local_array的值。
+
+代码实现如下：
+```cpp
+MPI_Sendrecv(&a0[INDEX(0, 0, grid_info->local_size_z, ldx, ldy)], ldx * ldy, MPI_DOUBLE, rank_id < rank_num - 1 ? rank_id + 1 : MPI_PROC_NULL, 0, \
+                &a0[INDEX(0, 0, 0, ldx, ldy)], ldx * ldy, MPI_DOUBLE, rank_id > 0 ? rank_id - 1 : MPI_PROC_NULL, 0, MPI_COMM_WORLD, &status);
+MPI_Sendrecv(&a0[INDEX(0, 0, grid_info->halo_size_z, ldx, ldy)], ldx * ldy, MPI_DOUBLE, rank_id > 0 ? rank_id - 1 : MPI_PROC_NULL, 1, \
+                &a0[INDEX(0, 0, grid_info->halo_size_z + grid_info->local_size_z, ldx, ldy)], ldx * ldy, MPI_DOUBLE, rank_id < rank_num - 1 ? rank_id + 1 : MPI_PROC_NULL, 1, MPI_COMM_WORLD, &status);
+```
+
+> 注意这里用`MPI_Sendrecv`将send逻辑和recv逻辑进行合并，同时使用`MPI_PROC_NULL`处理通信的边界条件。
+
+
 之后只要在主运算过程中添加`MPI_Sendrecv`函数即可实现进程间的通信：
 ```cpp
 MPI_Sendrecv(a0, 1, send_to_down, MPI_DOUBLE, rank < size - 1 ? rank_num + 1 : MPI_PROC_NULL, 0, 
@@ -196,7 +231,7 @@ MPI_Sendrecv(a0, 1, send_to_up, MPI_DOUBLE, rank > 0 ? rank - 1 : MPI_PROC_NULL,
              a0, 1, recv_from_down, MPI_DOUBLE, rank < size - 1 ? rank + 1 : MPI_PROC_NULL, 1, MPI_COMM_WORLD, &status);
 ```
 
-对y轴和x轴的划分同理，这里就不一一贴出代码实现了。
+
 
 
 ## 参考文献
