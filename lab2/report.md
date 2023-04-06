@@ -1,5 +1,7 @@
 # 第二次作业 实验报告
 
+本次作业的参考文献有：[^1][^2][^3]。
+
 ## 实验目的
 
 1. 实现高效的矩阵乘法
@@ -247,8 +249,8 @@ MPI_Sendrecv(&a0[INDEX(0, 0, grid_info->halo_size_z, ldx, ldy)], ldx * ldy, MPI_
 
 ## 参考文献
 
-[^1] [StencilProbe: A Microbenchmark for Stencil Applications](http://people.csail.mit.edu/skamil/projects/stencilprobe/)
+[^1]: [StencilProbe: A Microbenchmark for Stencil Applications](http://people.csail.mit.edu/skamil/projects/stencilprobe/)
 
-[^2] [adept-kernel-openmp](https://github.com/EPCCed/adept-kernel-openmp/blob/master/stencil.c)
+[^2]: [adept-kernel-openmp](https://github.com/EPCCed/adept-kernel-openmp/blob/master/stencil.c)
 
-[^3] [Message Passing Interface (MPI)](https://hpc-tutorials.llnl.gov/mpi/)
+[^3]: [Message Passing Interface (MPI)](https://hpc-tutorials.llnl.gov/mpi/)
