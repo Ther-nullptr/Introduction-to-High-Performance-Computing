@@ -30,6 +30,9 @@
 *.data
 *.zip
 *.txt
+*.raw
+*.a
+*.jpg
 
 stencil_CPU-master/
 
