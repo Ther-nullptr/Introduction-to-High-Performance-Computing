@@ -1,5 +1,7 @@
 # 第二次作业 实验报告
 
+本次作业的参考文献有：[^1][^2][^3]。
+
 ## 实验目的
 
 1. 实现高效的模板计算
@@ -8,7 +10,7 @@
 
 ## 工程说明
 
-本项目实现了矩阵相乘的多种优化的方式，存放于若干个git branch上：
+本项目实现了模板计算的多种优化的方式，存放于若干个git branch上：
 ```bash
 $ git branch -v
   master  # 主分支，与mpi(本项目的sota)一致 
@@ -209,6 +211,8 @@ void extract_subarrays(dist_grid_info_t *grid_info, MPI_Datatype *recv_from_up, 
 
 数组之间的通信原理如图所示，每一个local_array都可以分为`core_array`部分（这部分会发生更改）和`ghost_array`部分（这部分需要依赖进程通信来获取数据用于读取，但不作更新）；同时，自身`core_array`的外层部分也会作为其他local_array的`ghost_array`部分，需要进行发送）。
 
+![040f331e4d1a7f663b54950ad59a5b4.jpg](https://s2.loli.net/2023/04/03/sMCajE5QrVclkUD.jpg)
+
 具体的解释如下：在划分时，在每一个local_array中被划分的方向上，总维度数为`local_size + 2 * halo_size`。第0维作为receive buffer接收上一个local_array的值；第`halo_size`维作为send buffer发送给上一个local_array；第`local_size`维作为send buffer发送给下一个local_array；第`local_size + halo_size`维作为receive buffer接收下一个local_array的值。
 
 代码实现如下：
@@ -245,8 +249,8 @@ MPI_Sendrecv(&a0[INDEX(0, 0, grid_info->halo_size_z, ldx, ldy)], ldx * ldy, MPI_
 
 ## 参考文献
 
-[^1] [StencilProbe: A Microbenchmark for Stencil Applications](http://people.csail.mit.edu/skamil/projects/stencilprobe/)
+[^1]: [StencilProbe: A Microbenchmark for Stencil Applications](http://people.csail.mit.edu/skamil/projects/stencilprobe/)
 
-[^2] [adept-kernel-openmp](https://github.com/EPCCed/adept-kernel-openmp/blob/master/stencil.c)
+[^2]: [adept-kernel-openmp](https://github.com/EPCCed/adept-kernel-openmp/blob/master/stencil.c)
 
-[^3] [Message Passing Interface (MPI)](https://hpc-tutorials.llnl.gov/mpi/)
+[^3]: [Message Passing Interface (MPI)](https://hpc-tutorials.llnl.gov/mpi/)

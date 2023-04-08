@@ -1,5 +1,7 @@
 # 第一次作业 实验报告
 
+本次作业的参考文献有：[^1][^2][^3][^4][^5][^6][^7][^8][^9]。
+
 ## 实验目的
 
 1. 实现高效的矩阵乘法
@@ -898,20 +900,20 @@ fclose(fp);
 
 ## 参考文献
 
-* [深入浅出GPU优化系列：GEMM优化（一）](https://zhuanlan.zhihu.com/p/435908830)
+[^1]: [深入浅出GPU优化系列：GEMM优化（一）](https://zhuanlan.zhihu.com/p/435908830)
 
-* [通用矩阵乘（GEMM）优化与卷积计算](https://zhuanlan.zhihu.com/p/66958390)
+[^2]: [通用矩阵乘（GEMM）优化与卷积计算](https://zhuanlan.zhihu.com/p/66958390)
 
-* [Instructions函数对照表：01 mmintrin.h与MMX指令集](https://www.cnblogs.com/zyl910/archive/2012/07/19/intrin01_mmx.html)
+[^3]: [Instructions函数对照表：01 mmintrin.h与MMX指令集](https://www.cnblogs.com/zyl910/archive/2012/07/19/intrin01_mmx.html)
 
-*  [Intel® Intrinsics Guide](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html)
+[^4]:  [Intel® Intrinsics Guide](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html)
 
-* [SIMD指令集](https://zhuanlan.zhihu.com/p/31271788)
+[^5]: [SIMD指令集](https://zhuanlan.zhihu.com/p/31271788)
 
-* [SIMD](https://www.cnblogs.com/zyl910/archive/2012/04/26/md00.html)
+[^6]: [SIMD](https://www.cnblogs.com/zyl910/archive/2012/04/26/md00.html)
 
-* [如何加速矩阵乘法——优化GEMM (CPU单线程篇)](https://renzibei.com/2021/06/30/optimize-gemm/)
+[^7]: [如何加速矩阵乘法——优化GEMM (CPU单线程篇)](https://renzibei.com/2021/06/30/optimize-gemm/)
 
-* [SIMD简介](https://zhuanlan.zhihu.com/p/55327037)
+[^8]: [SIMD简介](https://zhuanlan.zhihu.com/p/55327037)
 
-*  [GCC编译优化和调试选项](http://walkerdu.com/2020/04/22/gcc_optimization/#Ofast)
+[^9]: [GCC编译优化和调试选项](http://walkerdu.com/2020/04/22/gcc_optimization/#Ofast)
