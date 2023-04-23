@@ -33,21 +33,22 @@
 #define INDEX(xx, yy, zz, ldxx, ldyy) ((xx) + (ldxx) * ((yy) + (ldyy) * (zz)))
 
 typedef double data_t;
-typedef data_t* ptr_t;
-typedef const data_t* cptr_t;
+typedef data_t *ptr_t;
+typedef const data_t *cptr_t;
 #define DATA_TYPE MPI_DOUBLE
 
-/* 
+/*
  * Global array `g`: array of size
  * global_size_x * global_size_y * global_size_z
  *
  * Local array `l`: array of size
  * (local_size_x + halo_size_x * 2) * (local_size_y + halo_size_y * 2) * (local_size_y + halo_size_x * 2)
  *
- * the element `l[halo_size_x + x][halo_size_y + y][halo_size_z + z]` in local array represents 
- * the element `g[offset_x + x][offset_y + y][offset_z + z]` in global array 
+ * the element `l[halo_size_x + x][halo_size_y + y][halo_size_z + z]` in local array represents
+ * the element `g[offset_x + x][offset_y + y][offset_z + z]` in global array
  */
-typedef struct {
+typedef struct
+{
     int global_size_x, global_size_y, global_size_z;
     int local_size_x, local_size_y, local_size_z;
     int offset_x, offset_y, offset_z;
@@ -57,15 +58,16 @@ typedef struct {
 } dist_grid_info_t;
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-void create_dist_grid(dist_grid_info_t *info, int stencil_type);
-void destroy_dist_grid(dist_grid_info_t *info);
-/* `arr` is the input array, `aux` is an auxiliary buffer
- * return the pointer to the output array
- * the returned value should be either equal to `arr` or `aux` */
-ptr_t stencil_27(ptr_t arr, ptr_t aux, const dist_grid_info_t *info, int nt);
+    void create_dist_grid(dist_grid_info_t *info, int stencil_type);
+    void destroy_dist_grid(dist_grid_info_t *info);
+    /* `arr` is the input array, `aux` is an auxiliary buffer
+     * return the pointer to the output array
+     * the returned value should be either equal to `arr` or `aux` */
+    ptr_t stencil_27(ptr_t arr, ptr_t aux, const dist_grid_info_t *info, int nt);
 
 #ifdef __cplusplus
 }

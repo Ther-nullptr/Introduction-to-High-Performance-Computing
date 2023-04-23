@@ -1,6 +1,6 @@
 
 CC = nvcc 
-OPT =
+OPT = -O3 -arch=sm_35 
 CFLAGS = $(OPT)
 LDFLAGS =
 LDLIBS = $(LDFLAGS)

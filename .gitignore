@@ -50,3 +50,7 @@ pi_critical
 pi_locked
 pi_reduction
 pi_task
+
+device_test
+diamond_test
+get_gpu_info
