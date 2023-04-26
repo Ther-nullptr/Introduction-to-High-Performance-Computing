@@ -311,7 +311,9 @@ if (gx < nx && gy < ny) // 超出计算范围的线程无需工作
 |   8,4      |  441.591196 |  469.428652 |  468.452767    |
 |   32,32    |  360.759357 |  406.851275 |  362.065074    |
 
-让人倍感遗憾的是，本方法并没有起到应有的效果。
+## 备注
+
+后续与同学讨论为什么对代码进行改进时难以使得性能得到进一步提升——使用`nvc`工具对程序进行分析[^6]，发现该程序在运行时，A40的roofline已经达到了double的计算峰值，很难再对访存进行进一步的优化，而stencil计算的复杂度又难以进一步降低。因此，该程序的性能已经达到了极限。
 
 ## 参考文献
 
@@ -324,3 +326,5 @@ if (gx < nx && gy < ny) // 超出计算范围的线程无需工作
 [^4] [NVIDIA CUDA Compiler Driver NVCC](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/)
 
 [^5] [CUDA C编程权威指南](https://github.com/sallenkey-wei/cuda-handbook/)
+
+[^6] [使用Nsight Compute构建roofline model](https://zhuanlan.zhihu.com/p/567938328)
