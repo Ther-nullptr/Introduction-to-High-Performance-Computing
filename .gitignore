@@ -54,3 +54,5 @@ pi_task
 device_test
 diamond_test
 get_gpu_info
+
+CMakeFiles/
