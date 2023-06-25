@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <ctime>
 #include <iostream>
+#include <immintrin.h>
 #include <mpi.h>
 #include "pnetcdf.h"
 #include <chrono>
