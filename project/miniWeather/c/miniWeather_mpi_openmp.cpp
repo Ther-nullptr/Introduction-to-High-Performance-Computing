@@ -256,37 +256,16 @@ void semi_discrete_step( double *state_init , double *state_forcing , double *st
 
   //Apply the tendencies to the fluid state
 #pragma omp parallel for private(inds,indt,x,z,x0,z0,xrad,zrad,amp,dist,wpert,indw) collapse(3)
-  for (ll=0; ll<NUM_VARS; ll++) {
-    for (k=0; k<nz; k++) {
-      for (i=0; i<nx; i++) {
-        if (data_spec_int == DATA_SPEC_GRAVITY_WAVES) {
-          x = (i_beg + i+0.5)*dx;
-          z = (k_beg + k+0.5)*dz;
-          // Using sample_ellipse_cosine requires "acc routine" in OpenACC and "declare target" in OpenMP offload
-          // Neither of these are particularly well supported. So I'm manually inlining here
-          // wpert = sample_ellipse_cosine( x,z , 0.01 , xlen/8,1000., 500.,500. );
-          {
-            x0   = xlen/8;
-            z0   = 1000;
-            xrad = 500;
-            zrad = 500;
-            amp  = 0.01;
-            //Compute distance from bubble center
-            dist = sqrt( ((x-x0)/xrad)*((x-x0)/xrad) + ((z-z0)/zrad)*((z-z0)/zrad) ) * pi / 2.;
-            //If the distance from bubble center is less than the radius, create a cos**2 profile
-            if (dist <= pi / 2.) {
-              wpert = amp * fastpow(cos(dist),2.);
-            } else {
-              wpert = 0.;
-            }
-          }
-          indw = ID_WMOM*nz*nx + k*nx + i;
-          tend[indw] += wpert*hy_dens_cell[hs+k];
+  for (ll = 0; ll < NUM_VARS; ll++) {
+    for (k = 0; k < nz; k++) {
+        for (int i = 0; i < nx; i += 4) {
+            int addr =  (ll*(nz+2*hs) + (k+hs))*(nx+2*hs) + i + hs;
+            __m256d stateInit1 = _mm256_loadu_pd(state_init + addr);
+            __m256d dtVec = _mm256_set1_pd(dt);
+            __m256d tendVec = _mm256_loadu_pd(tend + ll*nz*nx + k*nx + i);
+            __m256d stateOut1 = _mm256_add_pd(stateInit1, _mm256_mul_pd(dtVec, tendVec));
+            _mm256_storeu_pd(state_out + addr, stateOut1);
         }
-        inds = ll*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i+hs;
-        indt = ll*nz*nx + k*nx + i;
-        state_out[inds] = state_init[inds] + dt * tend[indt];
-      }
     }
   }
 }
@@ -334,14 +313,16 @@ void compute_tendencies_x( double *state , double *flux , double *tend , double 
 
   //Use the fluxes to compute tendencies for each cell
 #pragma omp parallel for private(indt,indf1,indf2) collapse(3)
-  for (ll=0; ll<NUM_VARS; ll++) {
-    for (k=0; k<nz; k++) {
-      for (i=0; i<nx; i++) {
-        indt  = ll* nz   * nx    + k* nx    + i  ;
-        indf1 = ll*(nz+1)*(nx+1) + k*(nx+1) + i  ;
-        indf2 = ll*(nz+1)*(nx+1) + k*(nx+1) + i+1;
-        tend[indt] = -( flux[indf2] - flux[indf1] ) / dx;
-      }
+for (ll = 0; ll < NUM_VARS; ll++) {
+    for (k = 0; k < nz; k++) {
+        for (int i = 0; i < nx; i += 4) {
+            int add1 = ll*(nz+1)*(nx+1) + k*(nx+1) + i;
+            __m256d flux1 = _mm256_loadu_pd(flux + add1);
+            __m256d flux2 = _mm256_loadu_pd(flux + add1 + 1);
+            __m256d dxVec = _mm256_set1_pd(dx);
+            __m256d result = _mm256_div_pd(_mm256_sub_pd(flux2, flux1), dxVec);
+            _mm256_storeu_pd(tend+(ll*nz*nx + k*nx + i), _mm256_sub_pd(_mm256_setzero_pd(), result));
+        }
     }
   }
 }
@@ -394,18 +375,23 @@ void compute_tendencies_z( double *state , double *flux , double *tend , double 
 
   //Use the fluxes to compute tendencies for each cell
 #pragma omp parallel for private(indt,indf1,indf2,inds) collapse(3)
-  for (ll=0; ll<NUM_VARS; ll++) {
-    for (k=0; k<nz; k++) {
-      for (i=0; i<nx; i++) {
-        indt  = ll* nz   * nx    + k* nx    + i  ;
-        indf1 = ll*(nz+1)*(nx+1) + (k  )*(nx+1) + i;
-        indf2 = ll*(nz+1)*(nx+1) + (k+1)*(nx+1) + i;
-        tend[indt] = -( flux[indf2] - flux[indf1] ) / dz;
-        if (ll == ID_WMOM) {
-          inds = ID_DENS*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i+hs;
-          tend[indt] = tend[indt] - state[inds]*grav;
+  for (ll = 0; ll < NUM_VARS; ll++) {
+    for (k = 0; k < nz - 1; k++) {
+        for (int i = 0; i < nx; i += 4) {
+            int add1 = ll*(nz+1)*(nx+1) + k*(nx+1) + i;
+            __m256d flux1 = _mm256_loadu_pd(flux + add1);
+            __m256d flux2 = _mm256_loadu_pd(flux + add1 + (nx+1));
+            __m256d dzVec = _mm256_set1_pd(dz);
+            __m256d result = _mm256_div_pd(_mm256_sub_pd(flux2, flux1), dzVec);
+            _mm256_storeu_pd(tend + (ll*nz*nx + k*nx + i), _mm256_sub_pd(_mm256_setzero_pd(), result));
+
+            if (ll == ID_WMOM) {
+                __m256d stateVec = _mm256_loadu_pd(state + (ID_DENS*(nz+2*hs)*(nx+2*hs) + (k+hs)*(nx+2*hs) + i+hs));
+                __m256d gravVec = _mm256_set1_pd(grav);
+                __m256d gravityTerm = _mm256_mul_pd(stateVec, gravVec);
+                _mm256_storeu_pd(tend + (ll*nz*nx + k*nx + i), _mm256_sub_pd(_mm256_loadu_pd(tend + (ll*nz*nx + k*nx + i)), gravityTerm));
+            }
         }
-      }
     }
   }
 }
