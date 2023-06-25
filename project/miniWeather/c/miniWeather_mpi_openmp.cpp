@@ -141,52 +141,74 @@ inline double fastpow(double a, const double b)
 ///////////////////////////////////////////////////////////////////////////////////////
 // THE MAIN PROGRAM STARTS HERE
 ///////////////////////////////////////////////////////////////////////////////////////
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
 
-  init( &argc , &argv );
+    auto inital_t1 = std::chrono::steady_clock::now();
+    init(&argc, &argv);
 
-  //Initial reductions for mass, kinetic energy, and total energy
-  reductions(mass0,te0);
+    // Initial reductions for mass, kinetic energy, and total energy
+    reductions(mass0, te0);
 
-  //Output the initial state
-  output(state,etime);
-
-  ////////////////////////////////////////////////////
-  // MAIN TIME STEP LOOP
-  ////////////////////////////////////////////////////
-  auto t1 = std::chrono::steady_clock::now();
-  while (etime < sim_time) {
-    //If the time step leads to exceeding the simulation time, shorten it for the last step
-    if (etime + dt > sim_time) { dt = sim_time - etime; }
-    //Perform a single time step
-    perform_timestep(state,state_tmp,flux,tend,dt);
-    //Inform the user
-#ifndef NO_INFORM
-    if (mainproc) { printf( "Elapsed Time: %lf / %lf\n", etime , sim_time ); }
-#endif
-    //Update the elapsed time and output counter
-    etime = etime + dt;
-    output_counter = output_counter + dt;
-    //If it's time for output, reset the counter, and do output
-    if (output_counter >= output_freq) {
-      output_counter = output_counter - output_freq;
-      output(state,etime);
+    // Output the initial state
+    output(state, etime);
+    auto inital_t2 = std::chrono::steady_clock::now();
+    if (mainproc)
+    {
+        std::cout << "Initial Time: " << std::chrono::duration<double>(inital_t2 - inital_t1).count() << " sec\n";
     }
-  }
-  auto t2 = std::chrono::steady_clock::now();
-  if (mainproc) {
-    std::cout << "CPU Time: " << std::chrono::duration<double>(t2-t1).count() << " sec\n";
-  }
 
-  //Final reductions for mass, kinetic energy, and total energy
-  reductions(mass,te);
+    ////////////////////////////////////////////////////
+    // MAIN TIME STEP LOOP
+    ////////////////////////////////////////////////////
+    auto t1 = std::chrono::steady_clock::now();
+    auto t_output = 0;
+    while (etime < sim_time)
+    {
+        // If the time step leads to exceeding the simulation time, shorten it for the last step
+        if (etime + dt > sim_time)
+        {
+            dt = sim_time - etime;
+        }
+        // Perform a single time step
+        perform_timestep(state, state_tmp, flux, tend, dt);
+        // Inform the user
+#ifndef NO_INFORM
+        if (mainproc)
+        {
+            printf("Elapsed Time: %lf / %lf\n", etime, sim_time);
+        }
+#endif
+        // Update the elapsed time and output counter
+        etime = etime + dt;
+        output_counter = output_counter + dt;
+        // If it's time for output, reset the counter, and do output
+        if (output_counter >= output_freq)
+        {
+            output_counter = output_counter - output_freq;
+            auto t_output_start = std::chrono::high_resolution_clock::now();
+            output(state, etime);
+            auto t_output_end = std::chrono::high_resolution_clock::now();
+            t_output += std::chrono::duration_cast<std::chrono::microseconds>(t_output_end - t_output_start).count();
+        }
+    }
+    auto t2 = std::chrono::steady_clock::now();
+    if (mainproc)
+    {
+        std::cout << "CPU Time: " << std::chrono::duration<double>(t2 - t1).count() << " sec\n";
+        std::cout << "I/O Time: " << t_output / 1000 << " sec\n";
+    }
 
-  if (mainproc) {
-    printf( "d_mass: %le\n" , (mass - mass0)/mass0 );
-    printf( "d_te:   %le\n" , (te   - te0  )/te0   );
-  }
+    // Final reductions for mass, kinetic energy, and total energy
+    reductions(mass, te);
 
-  finalize();
+    if (mainproc)
+    {
+        printf("d_mass: %le\n", (mass - mass0) / mass0);
+        printf("d_te:   %le\n", (te - te0) / te0);
+    }
+
+    finalize();
 }
 
 
