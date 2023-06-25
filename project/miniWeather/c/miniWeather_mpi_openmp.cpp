@@ -56,10 +56,10 @@ constexpr double qweights[] = { 0.277777777777777777777777777779E0 , 0.444444444
 ///////////////////////////////////////////////////////////////////////////////////////
 //The x-direction length is twice as long as the z-direction length
 //So, you'll want to have nx_glob be twice as large as nz_glob
-int    constexpr nx_glob       = _NX;            //Number of total cells in the x-direction
-int    constexpr nz_glob       = _NZ;            //Number of total cells in the z-direction
-double constexpr sim_time      = _SIM_TIME;      //How many seconds to run the simulation
-double constexpr output_freq   = _OUT_FREQ;      //How frequently to output data to file (in seconds)
+int    constexpr nx_glob       = 3200;            //Number of total cells in the x-direction
+int    constexpr nz_glob       = 1600;            //Number of total cells in the z-direction
+double constexpr sim_time      = 2;      //How many seconds to run the simulation
+double constexpr output_freq   = 50;      //How frequently to output data to file (in seconds)
 int    constexpr data_spec_int = _DATA_SPEC;     //How to initialize the data
 double constexpr dx            = xlen / nx_glob; // grid spacing in the x-direction
 double constexpr dz            = zlen / nz_glob; // grid spacing in the x-direction
@@ -126,6 +126,17 @@ void   set_halo_values_x    ( double *state );
 void   set_halo_values_z    ( double *state );
 void   reductions           ( double &mass , double &te );
 
+inline double fastpow(double a, const double b)
+{
+    union
+    {
+        double d;
+        int x[2];
+    } u = {a};
+    u.x[1] = (int)(b * (u.x[1] - 1072632447) + 1072632447);
+    u.x[0] = 0;
+    return u.d;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // THE MAIN PROGRAM STARTS HERE
@@ -249,7 +260,7 @@ void semi_discrete_step( double *state_init , double *state_forcing , double *st
             dist = sqrt( ((x-x0)/xrad)*((x-x0)/xrad) + ((z-z0)/zrad)*((z-z0)/zrad) ) * pi / 2.;
             //If the distance from bubble center is less than the radius, create a cos**2 profile
             if (dist <= pi / 2.) {
-              wpert = amp * pow(cos(dist),2.);
+              wpert = amp * fastpow(cos(dist),2.);
             } else {
               wpert = 0.;
             }
@@ -296,7 +307,7 @@ void compute_tendencies_x( double *state , double *flux , double *tend , double 
       u = vals[ID_UMOM] / r;
       w = vals[ID_WMOM] / r;
       t = ( vals[ID_RHOT] + hy_dens_theta_cell[k+hs] ) / r;
-      p = C0*pow((r*t),gamm);
+      p = C0*fastpow((r*t),gamm);
 
       //Compute the flux vector
       flux[ID_DENS*(nz+1)*(nx+1) + k*(nx+1) + i] = r*u     - hv_coef*d3_vals[ID_DENS];
@@ -351,7 +362,7 @@ void compute_tendencies_z( double *state , double *flux , double *tend , double 
       u = vals[ID_UMOM] / r;
       w = vals[ID_WMOM] / r;
       t = ( vals[ID_RHOT] + hy_dens_theta_int[k] ) / r;
-      p = C0*pow((r*t),gamm) - hy_pressure_int[k];
+      p = C0*fastpow((r*t),gamm) - hy_pressure_int[k];
       //Enforce vertical boundary condition and exact mass conservation
       if (k == 0 || k == nz) {
         w                = 0;
@@ -604,7 +615,7 @@ void init( int *argc , char ***argv ) {
     if (data_spec_int == DATA_SPEC_INJECTION      ) { injection      (0.,z,r,u,w,t,hr,ht); }
     hy_dens_int      [k] = hr;
     hy_dens_theta_int[k] = hr*ht;
-    hy_pressure_int  [k] = C0*pow((hr*ht),gamm);
+    hy_pressure_int  [k] = C0*fastpow((hr*ht),gamm);
   }
 }
 
@@ -687,8 +698,8 @@ void hydro_const_theta( double z , double &r , double &t ) {
   //Establish hydrostatic balance first using Exner pressure
   t = theta0;                                  //Potential Temperature at z
   exner = exner0 - grav * z / (cp * theta0);   //Exner pressure at z
-  p = p0 * pow(exner,(cp/rd));                 //Pressure at z
-  rt = pow((p / C0),(1. / gamm));             //rho*theta at z
+  p = p0 * fastpow(exner,(cp/rd));                 //Pressure at z
+  rt = fastpow((p / C0),(1. / gamm));             //rho*theta at z
   r = rt / t;                                  //Density at z
 }
 
@@ -703,8 +714,8 @@ void hydro_const_bvfreq( double z , double bv_freq0 , double &r , double &t ) {
   double       p, exner, rt;
   t = theta0 * exp( bv_freq0*bv_freq0 / grav * z );                                    //Pot temp at z
   exner = exner0 - grav*grav / (cp * bv_freq0*bv_freq0) * (t - theta0) / (t * theta0); //Exner pressure at z
-  p = p0 * pow(exner,(cp/rd));                                                         //Pressure at z
-  rt = pow((p / C0),(1. / gamm));                                                  //rho*theta at z
+  p = p0 * fastpow(exner,(cp/rd));                                                         //Pressure at z
+  rt = fastpow((p / C0),(1. / gamm));                                                  //rho*theta at z
   r = rt / t;                                                                          //Density at z
 }
 
@@ -718,7 +729,7 @@ double sample_ellipse_cosine( double x , double z , double amp , double x0 , dou
   dist = sqrt( ((x-x0)/xrad)*((x-x0)/xrad) + ((z-z0)/zrad)*((z-z0)/zrad) ) * pi / 2.;
   //If the distance from bubble center is less than the radius, create a cos**2 profile
   if (dist <= pi / 2.) {
-    return amp * pow(cos(dist),2.);
+    return amp * fastpow(cos(dist),2.);
   } else {
     return 0.;
   }
@@ -867,8 +878,8 @@ void reductions( double &mass , double &te ) {
       double u  =   state[ind_u] / r;                              // U-wind
       double w  =   state[ind_w] / r;                              // W-wind
       double th = ( state[ind_t] + hy_dens_theta_cell[hs+k] ) / r; // Potential Temperature (theta)
-      double p  = C0*pow(r*th,gamm);                               // Pressure
-      double t  = th / pow(p0/p,rd/cp);                            // Temperature
+      double p  = C0*fastpow(r*th,gamm);                               // Pressure
+      double t  = th / fastpow(p0/p,rd/cp);                            // Temperature
       double ke = r*(u*u+w*w);                                     // Kinetic Energy
       double ie = r*cv*t;                                          // Internal Energy
       mass_loc += r        *dx*dz; // Accumulate domain mass
